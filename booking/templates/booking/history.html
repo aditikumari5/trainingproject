@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1>My Bookings 🎟</h1>
+
+
+{% for booking in bookings %}
+
+<div class="card">
+
+<h2>🎬 Avengers</h2>
+
+<p>
+Booking ID:
+{{ booking.id }}
+</p>
+
+<p>
+Booked On:
+{{ booking.booking_time }}
+</p>
+
+<p>
+Seats:
+{% for seat in booking.seats.all %}
+<span class="seat">
+{{ seat.seat_number }}
+</span>
+{% endfor %}
+</p>
+
+<p class="status">
+Confirmed ✅
+</p>
+
+</div>
+
+{% empty %}
+
+<h3 style="text-align:center;">
+No bookings yet.
+</h3>
+
+{% endfor %}
+
+
+
+<style>
+
+h1{
+text-align:center;
+margin-top:35px;
+font-size:40px;
+}
+
+.card{
+width:550px;
+margin:30px auto;
+padding:30px;
+background:white;
+color:black;
+border-radius:20px;
+box-shadow:0 0 15px rgba(0,0,0,.2);
+}
+
+.card h2{
+margin-bottom:20px;
+color:#ff4d4d;
+}
+
+.card p{
+font-size:18px;
+margin:12px 0;
+}
+
+.seat{
+display:inline-block;
+background:#28a745;
+color:white;
+padding:8px 14px;
+border-radius:8px;
+margin:5px;
+font-weight:bold;
+}
+
+.status{
+color:green;
+font-weight:bold;
+font-size:20px;
+margin-top:20px;
+}
+
+</style>
+
+{% endblock %}

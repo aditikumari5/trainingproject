@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1 style="text-align:center;">
+Now Showing 🎬
+</h1>
+
+<div class="movies">
+
+{% for movie in movies %}
+
+<div class="card">
+
+<img src="{{ movie.Poster }}">
+
+<h2>
+{{ movie.Title }}
+</h2>
+
+<p>
+{{ movie.Year }}
+</p>
+
+<p>
+{{ movie.Genre }}
+</p>
+
+<a href="/seats/?movie={{ movie.Title }}">
+Book Now
+</a>
+
+</div>
+
+{% endfor %}
+
+</div>
+
+
+<style>
+
+.movies{
+display:grid;
+grid-template-columns:
+repeat(auto-fit,minmax(250px,1fr));
+gap:30px;
+padding:30px;
+}
+
+.card{
+background:#111;
+color:white;
+padding:20px;
+border-radius:15px;
+text-align:center;
+}
+
+img{
+width:100%;
+height:350px;
+object-fit:cover;
+border-radius:12px;
+}
+
+a{
+display:inline-block;
+margin-top:15px;
+background:red;
+color:white;
+padding:10px 20px;
+text-decoration:none;
+border-radius:8px;
+}
+
+body{
+background:black;
+}
+
+</style>
+
+{% endblock %}

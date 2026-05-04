@@ -1,0 +1,93 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1 style="text-align:center;">
+Payment Page 💳
+</h1>
+
+<div class="payment-box">
+
+<h2>
+Movie: {{ movie }}
+</h2>
+
+<h3>
+Seats Selected: {{ seats|length }}
+</h3>
+
+<h3>
+Price per Seat: ₹{{ price_per_seat }}
+</h3>
+
+<h1 style="color:green;">
+Total Amount: ₹{{ total }}
+</h1>
+
+<button id="pay-btn">
+Pay Now
+</button>
+
+</div>
+
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
+<script>
+
+var options = {
+    "key": "{{ razorpay_key }}",
+    "amount": "{{ total }}00",
+    "currency": "INR",
+    "name": "ShowTime",
+    "description": "{{ movie }} Booking",
+    "order_id": "{{ order_id }}",
+
+    "handler": function (response){
+        window.location.href = "/success/";
+    },
+
+    "theme": {
+        "color": "#ff4d4d"
+    }
+};
+
+var rzp = new Razorpay(options);
+
+document.getElementById('pay-btn').onclick = function(e){
+    rzp.open();
+    e.preventDefault();
+}
+
+</script>
+
+
+<style>
+
+.payment-box{
+width:350px;
+margin:60px auto;
+background:#fff;
+padding:30px;
+border-radius:15px;
+text-align:center;
+}
+
+button{
+margin-top:20px;
+padding:12px 25px;
+background:green;
+color:white;
+border:none;
+border-radius:8px;
+cursor:pointer;
+}
+
+body{
+background:black;
+color:white;
+}
+
+</style>
+
+{% endblock %}

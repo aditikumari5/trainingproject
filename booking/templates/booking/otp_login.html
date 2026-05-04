@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1>Email OTP Login 🔐</h1>
+
+<form method="POST">
+{% csrf_token %}
+
+<input
+type="email"
+name="email"
+placeholder="Enter Registered Email"
+required
+>
+
+<br><br>
+
+<button type="submit">
+Send OTP
+</button>
+
+</form>
+
+{% if error %}
+<p style="color:red;text-align:center;">
+{{ error }}
+</p>
+{% endif %}
+
+<style>
+
+h1{
+text-align:center;
+margin-top:40px;
+}
+
+form{
+width:350px;
+margin:40px auto;
+text-align:center;
+}
+
+input{
+width:100%;
+padding:12px;
+}
+
+button{
+margin-top:20px;
+padding:12px 25px;
+background:#ff4d4d;
+color:white;
+border:none;
+border-radius:8px;
+}
+
+</style>
+
+{% endblock %}

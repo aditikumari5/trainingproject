@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Confirm Booking</title>
+
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial;
+            background-color: #f5f5f5;
+        }
+
+        .box {
+            background: white;
+            padding: 20px;
+            width: 300px;
+            margin: 50px auto;
+            border-radius: 10px;
+            box-shadow: 0 0 10px #ccc;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: green;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="box">
+    <h2>Confirm Your Booking 🎬</h2>
+
+    <p><strong>Seats:</strong></p>
+    {% for seat in seats %}
+        {{ seat.seat_number }}<br>
+    {% endfor %}
+
+    <p><strong>Total Price:</strong> ₹{{ total_price }}</p>
+
+    <form method="POST" action="/final-book/">
+        {% csrf_token %}
+        {% for seat in seats %}
+            <input type="hidden" name="seats" value="{{ seat.id }}">
+        {% endfor %}
+
+        <button type="submit">Pay & Confirm</button>
+    </form>
+</div>
+
+</body>
+</html>

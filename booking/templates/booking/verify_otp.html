@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1>Verify OTP 🔐</h1>
+
+<p style="text-align:center;">
+Enter the OTP sent to your registered email
+</p>
+
+<form method="POST">
+{% csrf_token %}
+
+<input
+type="text"
+name="otp"
+placeholder="Enter 6-digit OTP"
+required
+>
+
+<br><br>
+
+<button type="submit">
+Verify OTP
+</button>
+
+</form>
+
+
+{% if error %}
+<p style="color:red;text-align:center;">
+{{ error }}
+</p>
+{% endif %}
+
+
+<style>
+
+h1{
+text-align:center;
+margin-top:40px;
+}
+
+form{
+width:350px;
+margin:40px auto;
+text-align:center;
+}
+
+input{
+width:100%;
+padding:12px;
+font-size:16px;
+border:none;
+border-radius:8px;
+}
+
+button{
+margin-top:20px;
+padding:12px 25px;
+background:#ff4d4d;
+color:white;
+border:none;
+border-radius:8px;
+font-size:16px;
+cursor:pointer;
+}
+
+button:hover{
+background:#ff3333;
+}
+
+</style>
+
+{% endblock %}

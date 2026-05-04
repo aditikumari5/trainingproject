@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="ticket">
+
+<h1>🎟 Booking Confirmed</h1>
+
+<h3>Movie: Avengers</h3>
+
+<p>
+Seats:
+{% for seat in seats %}
+{{ seat.seat_number }}
+{% endfor %}
+</p>
+
+<p>Status: Confirmed</p>
+
+<a href="/my-bookings/">
+View My Bookings
+</a>
+
+</div>
+
+<style>
+
+.ticket{
+width:500px;
+margin:60px auto;
+background:white;
+color:black;
+padding:35px;
+border-radius:20px;
+text-align:center;
+box-shadow:0 0 20px rgba(0,0,0,.2);
+}
+
+a{
+display:inline-block;
+margin-top:20px;
+padding:12px 25px;
+background:#ff4d4d;
+color:white;
+text-decoration:none;
+border-radius:8px;
+}
+
+</style>
+
+{% endblock %}

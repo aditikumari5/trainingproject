@@ -1,0 +1,68 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+
+<title>ShowTime</title>
+
+<style>
+
+body{
+margin:0;
+font-family:Arial;
+background:black;
+color:white;
+}
+
+nav{
+background:#1e1e1e;
+padding:20px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+}
+
+.logo{
+font-size:28px;
+font-weight:bold;
+color:#ff4d4d;
+}
+
+nav a{
+color:white;
+text-decoration:none;
+margin-left:25px;
+font-size:22px;
+}
+
+</style>
+
+</head>
+<body>
+
+<nav>
+
+<div class="logo">
+ShowTime 🎬
+</div>
+
+<div>
+
+<a href="/login/">
+Login
+</a>
+
+<a href="/signup/">
+Sign Up
+</a>
+
+</div>
+
+</nav>
+
+
+{% block content %}
+{% endblock %}
+
+</body>
+</html>
