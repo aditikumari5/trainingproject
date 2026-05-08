@@ -1,8 +1,8 @@
-# 🎬 ShowTime - Movie Ticket Booking System
+#  ShowTime - Movie Ticket Booking System
 
 A Django-based web app for booking movie tickets with dynamic pricing and OTP authentication.
 
-## 🚀 Features
+##  Features
 - OTP Login (Email)
 - Movie Listing (OMDB API)
 - Show Timings
@@ -11,12 +11,12 @@ A Django-based web app for booking movie tickets with dynamic pricing and OTP au
 - Booking History
 - Razorpay Integration (in progress)
 
-## 🛠️ Tech Stack
+##  Tech Stack
 - Django
 - HTML, CSS
 - SQLite/PostgreSQL
 - SendGrid
 
-## ▶️ Run Project
+##  Run Project
 pip install -r requirements.txt  
-python manage.py runserver
+python manage.py runservergit add .

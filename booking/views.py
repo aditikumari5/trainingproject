@@ -345,40 +345,53 @@ def book_multiple(request):
 
 @login_required
 def payment_view(request):
-
     seat_ids = request.session.get('booked_seats', [])
-
-    print("Session seats:", seat_ids)  # DEBUG
 
     if not seat_ids:
         return redirect('/seats/')
 
     seats = Seat.objects.filter(id__in=seat_ids)
-
-    if not seats:
+    if not seats.exists():
         return redirect('/seats/')
 
     show = seats.first().show
+    movie_name = show.movie_name if show else "ShowTime"
 
-    hour = show.show_time.hour
-
+    hour = show.show_time.hour if show else 12
     if hour < 12:
-        price = 120
+        price_per_seat = 120
     elif hour < 17:
-        price = 180
+        price_per_seat = 180
     else:
-        price = 250
+        price_per_seat = 250
 
-    total = len(seats) * price
+    total = len(seats) * price_per_seat
+
+    if not settings.RAZORPAY_KEY_ID or not settings.RAZORPAY_KEY_SECRET:
+        return HttpResponse("Razorpay keys missing in settings.py")
+
+    client = razorpay.Client(auth=(
+        settings.RAZORPAY_KEY_ID,
+        settings.RAZORPAY_KEY_SECRET
+    ))
+
+    payment = client.order.create({
+        "amount": total * 100,
+        "currency": "INR",
+        "payment_capture": "1"
+    })
 
     return render(
         request,
         'booking/payment.html',
         {
             'seats': seats,
+            'movie_name': movie_name,
+            'show_time': show.show_time if show else "",
             'total': total,
-            'price_per_seat': price,
-            'show': show
+            'price_per_seat': price_per_seat,
+            'order_id': payment['id'],
+            'razorpay_key': settings.RAZORPAY_KEY_ID,
         }
     )
 # ✔ Dynamic pricing based on movie
