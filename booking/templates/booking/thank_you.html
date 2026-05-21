@@ -1,0 +1,231 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<div class="thankyou-wrapper">
+
+    <div class="success-animation">
+        ✓
+    </div>
+
+    <div class="thankyou-card">
+
+        <h1>Booking Confirmed 🎉</h1>
+
+        <p class="success-message">
+            Your movie ticket has been booked successfully.
+        </p>
+
+        <div class="booking-details">
+
+            <div class="detail-row">
+                <span>Booking ID</span>
+                <strong>#{{ booking.id }}</strong>
+            </div>
+
+            <div class="detail-row">
+                <span>Movie</span>
+                <strong>{{ booking.movie_name }}</strong>
+            </div>
+
+            <div class="detail-row">
+                <span>Show Time</span>
+                <strong>{{ booking.show_time }}</strong>
+            </div>
+
+            <div class="detail-row">
+                <span>Seats</span>
+                <strong>{{ booking.seats }}</strong>
+            </div>
+
+            <div class="detail-row">
+                <span>Payment Method</span>
+                <strong>{{ booking.payment_method }}</strong>
+            </div>
+
+            <div class="detail-row">
+                <span>Total Paid</span>
+                <strong>₹{{ booking.amount }}</strong>
+            </div>
+
+            <div class="detail-row">
+                <span>Booking Date</span>
+                <strong>{{ booking.booked_at|date:"d M Y, h:i A" }}</strong>
+            </div>
+
+        </div>
+
+        <div class="action-buttons">
+
+            <a href="/ticket/{{ booking.id }}/" class="secondary-btn">
+                🎫 Download Ticket
+            </a>
+
+            <a href="/movies/" class="primary-btn">
+                🎬 Book More Movies
+            </a>
+
+            <a href="/my-bookings/" class="secondary-btn">
+                📜 View My Bookings
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+
+<style>
+body{
+    background:#0f0f0f;
+    color:white;
+    font-family:Arial,sans-serif;
+    margin:0;
+}
+
+.thankyou-wrapper{
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    padding:40px 20px;
+}
+
+.success-animation{
+    width:110px;
+    height:110px;
+    background:#27ae60;
+    border-radius:50%;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:56px;
+    font-weight:bold;
+    margin-bottom:25px;
+    box-shadow:0 0 30px rgba(39,174,96,.45);
+    animation:pop .6s ease;
+}
+
+@keyframes pop{
+    0%{
+        transform:scale(0.4);
+        opacity:0;
+    }
+    100%{
+        transform:scale(1);
+        opacity:1;
+    }
+}
+
+.thankyou-card{
+    width:100%;
+    max-width:560px;
+    background:#181818;
+    padding:35px;
+    border-radius:24px;
+    box-shadow:0 8px 30px rgba(0,0,0,.45);
+}
+
+.thankyou-card h1{
+    text-align:center;
+    font-size:38px;
+    margin-bottom:12px;
+}
+
+.success-message{
+    text-align:center;
+    color:#ccc;
+    margin-bottom:30px;
+    font-size:17px;
+    line-height:1.7;
+}
+
+.booking-details{
+    background:#101010;
+    border-radius:18px;
+    padding:20px;
+}
+
+.detail-row{
+    display:flex;
+    justify-content:space-between;
+    gap:20px;
+    padding:14px 0;
+    border-bottom:1px solid #2a2a2a;
+}
+
+.detail-row:last-child{
+    border-bottom:none;
+}
+
+.detail-row span{
+    color:#aaa;
+    font-size:15px;
+}
+
+.detail-row strong{
+    color:white;
+    text-align:right;
+}
+
+.action-buttons{
+    display:flex;
+    gap:15px;
+    margin-top:30px;
+    flex-wrap:wrap;
+}
+
+.primary-btn,
+.secondary-btn{
+    flex:1;
+    min-width:160px;
+    text-align:center;
+    padding:14px 18px;
+    border-radius:12px;
+    text-decoration:none;
+    font-weight:bold;
+    transition:.3s;
+}
+
+.primary-btn{
+    background:#ff4d4d;
+    color:white;
+}
+
+.primary-btn:hover{
+    background:#ff1f1f;
+    transform:translateY(-2px);
+}
+
+.secondary-btn{
+    background:#2a2a2a;
+    color:white;
+}
+
+.secondary-btn:hover{
+    background:#3a3a3a;
+    transform:translateY(-2px);
+}
+
+@media(max-width:600px){
+    .thankyou-card{
+        padding:25px;
+    }
+
+    .thankyou-card h1{
+        font-size:30px;
+    }
+
+    .detail-row{
+        flex-direction:column;
+        gap:8px;
+    }
+
+    .detail-row strong{
+        text-align:left;
+    }
+}
+</style>
+
+{% endblock %}

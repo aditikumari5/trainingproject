@@ -2,122 +2,320 @@
 
 {% block content %}
 
-<h2 style="text-align:center;">Select Your Seats 🎟️</h2>
+<h1 style="text-align:center; margin-bottom:10px;">
+    Select Your Seats 🎟
+</h1>
 
-<form method="POST" action="/book-multiple/">
+<h3 style="text-align:center; color:#ff4d4d; margin-bottom:25px;">
+    {{ movie }} | {{ show_time }}
+</h3>
+
+<form method="POST" action="/book-multiple/" id="seat-form">
+
     {% csrf_token %}
 
-    <div class="screen">SCREEN</div>
+    <div class="screen">
+        SCREEN
+    </div>
 
-    <div class="seats-container">
+    <div class="seat-container">
 
         {% for seat in seats %}
 
-            <label>
-                <input type="checkbox" name="seats" value="{{ seat.id }}">
+            <label
+                class="seat-label
+                {% if seat.is_booked %}
+                    booked
+                {% elif seat.is_locked %}
+                    locked
+                {% else %}
+                    available
+                {% endif %}"
+            >
 
-                <div class="seat 
-                    {% if seat.is_booked %}
-                        booked
-                    {% else %}
-                        available
+                <input
+                    type="checkbox"
+                    name="seats"
+                    value="{{ seat.id }}"
+                    data-price="{{ seat.price }}"
+
+                    {% if seat.is_booked or seat.is_locked %}
+                        disabled
                     {% endif %}
-                ">
+                >
+
+                <span class="seat-number">
                     {{ seat.seat_number }}
-                </div>
+                </span>
+
             </label>
 
         {% endfor %}
 
     </div>
 
-    <div style="text-align:center; margin-top:20px;">
-        <button type="submit" class="pay-btn">
-            Proceed to Pay 💳
+    <div class="legend">
+
+        <div class="legend-item">
+            <span class="legend-box available-box"></span>
+            Available
+        </div>
+
+        <div class="legend-item">
+            <span class="legend-box locked-box"></span>
+            Locked
+        </div>
+
+        <div class="legend-item">
+            <span class="legend-box booked-box"></span>
+            Booked
+        </div>
+
+    </div>
+
+    <div class="summary-box">
+
+        <h2>Booking Summary</h2>
+
+        <p>
+            <strong>Selected Seats:</strong>
+            <span id="selected-seats">
+                None
+            </span>
+        </p>
+
+        <p>
+            <strong>Total Amount:</strong>
+            ₹<span id="total-price">0</span>
+        </p>
+
+        <button type="submit" class="book-btn">
+            Continue to Payment
         </button>
+
     </div>
 
 </form>
 
+<script>
+
+    const seatInputs = document.querySelectorAll(
+        'input[name="seats"]'
+    );
+
+    const selectedSeatsText = document.getElementById(
+        "selected-seats"
+    );
+
+    const totalPriceText = document.getElementById(
+        "total-price"
+    );
+
+    function updateSummary(){
+
+        let selectedSeats = [];
+        let total = 0;
+
+        seatInputs.forEach(seat => {
+
+            if(seat.checked){
+
+                selectedSeats.push(
+                    seat.parentElement.innerText.trim()
+                );
+
+                total += parseInt(
+                    seat.dataset.price
+                );
+            }
+
+        });
+
+        selectedSeatsText.innerText =
+            selectedSeats.length > 0
+            ? selectedSeats.join(", ")
+            : "None";
+
+        totalPriceText.innerText = total;
+
+    }
+
+    seatInputs.forEach(seat => {
+        seat.addEventListener(
+            "change",
+            updateSummary
+        );
+    });
+
+</script>
+
 <style>
 
 body{
-background:#0f0f0f;
-color:white;
-font-family:Arial;
+    background:#0f0f0f;
+    color:white;
+    font-family:Arial,sans-serif;
 }
 
 /* SCREEN */
+
 .screen{
-text-align:center;
-background:#ccc;
-color:black;
-padding:10px;
-margin:20px auto;
-width:60%;
-border-radius:10px;
+    width:80%;
+    margin:0 auto 40px;
+    background:#ddd;
+    color:black;
+    text-align:center;
+    padding:14px;
+    border-radius:10px;
+    font-weight:bold;
+    transform:perspective(300px) rotateX(-10deg);
+    box-shadow:0 8px 25px rgba(255,255,255,.2);
 }
 
-/* SEATS GRID */
-.seats-container{
-display:grid;
-grid-template-columns:repeat(10, 1fr);
-gap:10px;
-justify-items:center;
-padding:20px;
+/* SEATS */
+
+.seat-container{
+    display:grid;
+    grid-template-columns:repeat(10, 1fr);
+    gap:15px;
+    max-width:850px;
+    margin:0 auto 40px;
+    padding:20px;
 }
 
-/* HIDE CHECKBOX */
-input[type="checkbox"]{
-display:none;
+.seat-label{
+    position:relative;
+    cursor:pointer;
+    text-align:center;
+    border-radius:12px;
+    padding:16px 0;
+    font-weight:bold;
+    transition:0.3s;
+    user-select:none;
 }
 
-/* SEAT BASE */
-.seat{
-width:35px;
-height:35px;
-display:flex;
-align-items:center;
-justify-content:center;
-border-radius:6px;
-font-size:12px;
-cursor:pointer;
-transition:0.2s;
+.seat-label input{
+    display:none;
 }
 
 /* AVAILABLE */
+
 .available{
-background:#444;
+    background:#27ae60;
 }
 
 .available:hover{
-background:#00c853;
+    transform:scale(1.05);
 }
 
-/* SELECTED */
-input[type="checkbox"]:checked + .seat{
-background:#00e676;
+.available:has(input:checked){
+    background:#f1c40f;
+    color:black;
 }
 
 /* BOOKED */
+
 .booked{
-background:#b71c1c;
-cursor:not-allowed;
+    background:#e74c3c;
+    cursor:not-allowed;
+    opacity:0.75;
 }
 
-/* BUTTON */
-.pay-btn{
-background:#e50914;
-color:white;
-padding:12px 25px;
-border:none;
-border-radius:8px;
-font-size:16px;
-cursor:pointer;
+/* LOCKED */
+
+.locked{
+    background:#f39c12;
+    cursor:not-allowed;
+    opacity:0.9;
+    color:black;
 }
 
-.pay-btn:hover{
-background:#ff1f2f;
+.seat-number{
+    font-size:15px;
+}
+
+/* LEGEND */
+
+.legend{
+    display:flex;
+    justify-content:center;
+    gap:30px;
+    margin-bottom:35px;
+    flex-wrap:wrap;
+}
+
+.legend-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.legend-box{
+    width:22px;
+    height:22px;
+    border-radius:5px;
+}
+
+.available-box{
+    background:#27ae60;
+}
+
+.locked-box{
+    background:#f39c12;
+}
+
+.booked-box{
+    background:#e74c3c;
+}
+
+/* SUMMARY */
+
+.summary-box{
+    max-width:420px;
+    margin:0 auto;
+    background:#181818;
+    padding:28px;
+    border-radius:18px;
+    text-align:center;
+    box-shadow:0 4px 18px rgba(0,0,0,.35);
+}
+
+.summary-box h2{
+    margin-bottom:20px;
+}
+
+.summary-box p{
+    margin:14px 0;
+    font-size:17px;
+    color:#ddd;
+}
+
+.book-btn{
+    margin-top:20px;
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:10px;
+    background:#ff4d4d;
+    color:white;
+    font-size:17px;
+    font-weight:bold;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.book-btn:hover{
+    background:#ff1f1f;
+}
+
+/* RESPONSIVE */
+
+@media(max-width:768px){
+
+    .seat-container{
+        grid-template-columns:repeat(5, 1fr);
+    }
+
 }
 
 </style>

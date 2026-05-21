@@ -1,68 +1,350 @@
 {% load static %}
+
 <!DOCTYPE html>
-<html>
+<html lang="en">
+
 <head>
 
-<title>ShowTime</title>
+    <meta charset="UTF-8">
 
-<style>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
-body{
-margin:0;
-font-family:Arial;
-background:black;
-color:white;
-}
+    <title>ShowTime</title>
 
-nav{
-background:#1e1e1e;
-padding:20px;
-display:flex;
-justify-content:space-between;
-align-items:center;
-}
+    <link
+        rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    >
 
-.logo{
-font-size:28px;
-font-weight:bold;
-color:#ff4d4d;
-}
+    <style>
 
-nav a{
-color:white;
-text-decoration:none;
-margin-left:25px;
-font-size:22px;
-}
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+        }
 
-</style>
+        body{
+            background:#0f0f0f;
+            color:white;
+            font-family:Arial,sans-serif;
+        }
+
+        /* NAVBAR */
+
+        .navbar{
+            width:100%;
+            height:75px;
+            background:#141414;
+            display:flex;
+            justify-content:space-between;
+            align-items:center;
+            padding:0 35px;
+            position:sticky;
+            top:0;
+            z-index:999;
+            box-shadow:0 2px 10px rgba(0,0,0,.4);
+        }
+
+        /* LOGO */
+
+        .logo a{
+            color:#ff4d4d;
+            font-size:38px;
+            font-weight:bold;
+            text-decoration:none;
+        }
+
+        /* NAV LINKS */
+
+        .nav-links{
+            display:flex;
+            align-items:center;
+            gap:18px;
+        }
+
+        .nav-links a{
+            color:white;
+            text-decoration:none;
+            padding:12px 18px;
+            border-radius:10px;
+            transition:.3s;
+            font-weight:bold;
+            font-size:15px;
+        }
+
+        .nav-links a:hover{
+            background:#ff4d4d;
+        }
+
+        .active-link{
+            background:#ff4d4d;
+        }
+
+        /* USER SECTION */
+
+        .user-section{
+            display:flex;
+            align-items:center;
+            gap:18px;
+        }
+
+        .welcome-text{
+            color:#ccc;
+            font-size:15px;
+        }
+
+        .logout-btn{
+            background:#ff4d4d;
+            padding:10px 18px;
+            border-radius:10px;
+            color:white;
+            text-decoration:none;
+            font-weight:bold;
+            transition:.3s;
+        }
+
+        .logout-btn:hover{
+            background:#ff1f1f;
+        }
+
+        /* MAIN CONTENT */
+
+        .main-content{
+            min-height:calc(100vh - 75px);
+        }
+
+        /* FOOTER */
+
+        .footer{
+            background:#141414;
+            padding:40px 20px;
+            text-align:center;
+            margin-top:60px;
+        }
+
+        .footer h3{
+            color:#ff4d4d;
+            margin-bottom:15px;
+            font-size:26px;
+        }
+
+        .footer p{
+            color:#bbb;
+            margin-bottom:8px;
+        }
+
+        .social-links{
+            margin-top:20px;
+            display:flex;
+            justify-content:center;
+            gap:18px;
+        }
+
+        .social-links a{
+            width:42px;
+            height:42px;
+            background:#222;
+            border-radius:50%;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            color:white;
+            text-decoration:none;
+            transition:.3s;
+            font-size:18px;
+        }
+
+        .social-links a:hover{
+            background:#ff4d4d;
+            transform:translateY(-3px);
+        }
+
+        /* MOBILE */
+
+        @media(max-width:900px){
+
+            .navbar{
+                flex-direction:column;
+                height:auto;
+                padding:18px;
+                gap:15px;
+            }
+
+            .nav-links{
+                flex-wrap:wrap;
+                justify-content:center;
+            }
+
+            .user-section{
+                flex-direction:column;
+                gap:12px;
+            }
+
+            .logo a{
+                font-size:32px;
+            }
+
+        }
+
+    </style>
 
 </head>
+
 <body>
 
-<nav>
+    <!-- NAVBAR -->
 
-<div class="logo">
-ShowTime 🎬
-</div>
+    <nav class="navbar">
 
-<div>
+        <!-- LOGO -->
 
-<a href="/login/">
-Login
-</a>
+        <div class="logo">
 
-<a href="/signup/">
-Sign Up
-</a>
+            <a href="/">
+                ShowTime 🎬
+            </a>
 
-</div>
+        </div>
 
-</nav>
+        <!-- NAVIGATION -->
 
+        <div class="nav-links">
 
-{% block content %}
-{% endblock %}
+            <a
+                href="/"
+                class="{% if request.path == '/' %}active-link{% endif %}"
+            >
+                <i class="fa-solid fa-house"></i>
+                Home
+            </a>
+
+            <a
+                href="/movies/"
+                class="{% if '/movies' in request.path %}active-link{% endif %}"
+            >
+                <i class="fa-solid fa-film"></i>
+                Movies
+            </a>
+
+            <a
+                href="/my-bookings/"
+                class="{% if '/my-bookings' in request.path %}active-link{% endif %}"
+            >
+                <i class="fa-solid fa-ticket"></i>
+                My Bookings
+            </a>
+
+            <a
+                href="/ai-recommend/"
+                class="{% if '/ai-recommend' in request.path %}active-link{% endif %}"
+            >
+                <i class="fa-solid fa-robot"></i>
+                AI Movies
+            </a>
+
+            {% if request.user.is_staff %}
+
+            <a
+                href="/admin-dashboard/"
+                class="{% if '/admin-dashboard' in request.path %}active-link{% endif %}"
+            >
+                <i class="fa-solid fa-chart-line"></i>
+                Admin Panel
+            </a>
+
+            {% endif %}
+
+        </div>
+
+        <!-- USER SECTION -->
+
+        <div class="user-section">
+
+            {% if request.user.is_authenticated %}
+
+                <span class="welcome-text">
+                    Hi, {{ request.user.username }}
+                </span>
+
+                <a
+                    href="/logout/"
+                    class="logout-btn"
+                >
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    Logout
+                </a>
+
+            {% else %}
+
+                <a
+                    href="/login/"
+                    class="logout-btn"
+                >
+                    Login
+                </a>
+
+                <a
+                    href="/signup/"
+                    class="logout-btn"
+                >
+                    Sign Up
+                </a>
+
+            {% endif %}
+
+        </div>
+
+    </nav>
+
+    <!-- MAIN CONTENT -->
+
+    <div class="main-content">
+
+        {% block content %}
+        {% endblock %}
+
+    </div>
+
+    <!-- FOOTER -->
+
+    <footer class="footer">
+
+        <h3>ShowTime 🎬</h3>
+
+        <p>
+            Book Movies. Watch Trailers. Enjoy Cinema.
+        </p>
+
+        <p>
+            Built with Django + TMDB API + Razorpay
+        </p>
+
+        <div class="social-links">
+
+            <a href="#">
+                <i class="fab fa-instagram"></i>
+            </a>
+
+            <a href="#">
+                <i class="fab fa-facebook-f"></i>
+            </a>
+
+            <a href="#">
+                <i class="fab fa-x-twitter"></i>
+            </a>
+
+            <a href="#">
+                <i class="fab fa-youtube"></i>
+            </a>
+
+        </div>
+
+    </footer>
 
 </body>
+
 </html>

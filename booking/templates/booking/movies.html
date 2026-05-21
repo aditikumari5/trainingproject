@@ -2,80 +2,185 @@
 
 {% block content %}
 
-<h1 style="text-align:center;">
-Now Showing 🎬
+<h1 style="text-align:center; margin-bottom:25px;">
+    Now Showing 🎬
 </h1>
 
-<div class="movies">
+<form method="GET" style="max-width:900px; margin:0 auto 30px; display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+    <input
+        type="text"
+        name="q"
+        value="{{ query }}"
+        placeholder="Search movies..."
+        style="padding:12px 16px; border-radius:10px; border:none; width:260px;"
+    >
 
-{% for movie in movies %}
+    <select name="genre" style="padding:12px 16px; border-radius:10px; border:none; width:200px;">
+        <option value="">All Genres</option>
+        {% for g in all_genres %}
+            <option value="{{ g }}" {% if selected_genre == g %}selected{% endif %}>{{ g }}</option>
+        {% endfor %}
+    </select>
 
-<div class="card">
+    <button type="submit" style="padding:12px 22px; border:none; border-radius:10px; background:#ff4d4d; color:white; font-weight:bold; cursor:pointer;">
+        Search
+    </button>
+</form>
 
-<img src="{{ movie.Poster }}">
+<div class="movie-container">
 
-<h2>
-{{ movie.Title }}
-</h2>
+    {% for movie in movies %}
 
-<p>
-{{ movie.Year }}
-</p>
+    <div class="movie-card">
 
-<p>
-{{ movie.Genre }}
-</p>
+        {% if movie.poster_path %}
+            <img
+                src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}"
+                alt="{{ movie.title }}"
+            >
+        {% else %}
+            <div class="no-poster">No Poster Available</div>
+        {% endif %}
 
-<a href="/seats/?movie={{ movie.Title }}">
-Book Now
-</a>
+        <div class="movie-info">
+
+            <h2>{{ movie.title }}</h2>
+
+            <p>📅 Release: {{ movie.release_date|default:"N/A" }}</p>
+
+            <p>
+                ⏱ Duration:
+                {% if movie.duration and movie.duration > 0 %}
+                    {{ movie.duration }} min
+                {% else %}
+                    Runtime Not Available
+                {% endif %}
+            </p>
+
+            <p class="rating">
+                {% if movie.rating and movie.rating > 0 %}
+                    ⭐ {{ movie.rating|floatformat:1 }}/10
+                    <br>
+                    <span class="votes">({{ movie.vote_count }} votes)</span>
+                {% else %}
+                    Rating Not Available
+                {% endif %}
+            </p>
+
+            <p style="color:#bbb; font-size:14px;">
+                {% if movie.genre %}
+                    {{ movie.genre }}
+                {% else %}
+                    Genre Not Available
+                {% endif %}
+            </p>
+
+            <a href="/movie/{{ movie.id }}/" class="book-btn">
+                Book Now
+            </a>
+
+        </div>
+    </div>
+
+    {% empty %}
+        <p style="text-align:center; width:100%; color:#bbb; font-size:18px;">
+            No movies found.
+        </p>
+    {% endfor %}
 
 </div>
-
-{% endfor %}
-
-</div>
-
 
 <style>
-
-.movies{
-display:grid;
-grid-template-columns:
-repeat(auto-fit,minmax(250px,1fr));
-gap:30px;
-padding:30px;
-}
-
-.card{
-background:#111;
-color:white;
-padding:20px;
-border-radius:15px;
-text-align:center;
-}
-
-img{
-width:100%;
-height:350px;
-object-fit:cover;
-border-radius:12px;
-}
-
-a{
-display:inline-block;
-margin-top:15px;
-background:red;
-color:white;
-padding:10px 20px;
-text-decoration:none;
-border-radius:8px;
-}
-
 body{
-background:black;
+    background:#0f0f0f;
+    color:white;
+    font-family:Arial,sans-serif;
 }
 
+.movie-container{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:30px;
+    padding:20px;
+}
+
+.movie-card{
+    width:240px;
+    background:#1a1a1a;
+    border-radius:18px;
+    overflow:hidden;
+    transition:0.3s;
+    box-shadow:0 4px 18px rgba(0,0,0,.35);
+}
+
+.movie-card:hover{
+    transform:translateY(-8px);
+}
+
+.movie-card img{
+    width:100%;
+    height:340px;
+    object-fit:cover;
+    display:block;
+}
+
+.no-poster{
+    width:100%;
+    height:340px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#2a2a2a;
+    color:#bbb;
+    font-size:18px;
+    text-align:center;
+    padding:10px;
+}
+
+.movie-info{
+    padding:18px;
+    text-align:center;
+}
+
+.movie-info h2{
+    font-size:24px;
+    margin-bottom:14px;
+    min-height:60px;
+}
+
+.movie-info p{
+    margin:10px 0;
+    color:#ddd;
+    font-size:15px;
+}
+
+.rating{
+    color:gold;
+    font-weight:bold;
+    font-size:17px;
+}
+
+.votes{
+    font-size:14px;
+    color:#bbb;
+}
+
+.book-btn{
+    display:inline-block;
+    margin-top:15px;
+    padding:12px 24px;
+    background:#ff4d4d;
+    color:white;
+    text-decoration:none;
+    border-radius:10px;
+    font-weight:bold;
+    transition:0.3s;
+}
+
+.book-btn:hover{
+    background:#ff1f1f;
+}
 </style>
 
 {% endblock %}

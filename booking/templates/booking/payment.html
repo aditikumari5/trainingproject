@@ -1,31 +1,58 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1 style="text-align:center; margin-top:40px;">Payment Page 💳</h1>
 
-<div style="width:420px; margin:40px auto; background:#fff; color:#000; padding:30px; border-radius:16px; text-align:center;">
+<h1 style="text-align:center; margin-bottom:30px;">
+    Payment Page 💳
+</h1>
+
+<div class="payment-card">
+
     <h2>{{ movie_name }}</h2>
-    <p>Show Time: {{ show_time }}</p>
-    <p>Seats Selected: {{ seats|length }}</p>
-    <p>Price per Seat: ₹{{ price_per_seat }}</p>
-    <h2>Total Amount: ₹{{ total }}</h2>
 
-    <button id="pay-btn" style="margin-top:20px; padding:12px 28px; border:none; border-radius:8px; background:green; color:white; cursor:pointer;">
+    <p><strong>Show Time:</strong> {{ show_time }}</p>
+    <p><strong>Seats:</strong> {{ seats }}</p>
+    <p><strong>Total Amount:</strong> ₹{{ amount }}</p>
+
+    <p class="timer-text">
+        <strong>Time Left:</strong>
+        <span id="countdown">Loading...</span>
+    </p>
+
+    <button type="button" id="pay-btn" class="pay-btn">
         Pay Now
     </button>
+
+    <form method="POST" action="/payment/cash/" style="margin-top:15px;">
+        {% csrf_token %}
+        <button type="submit" class="cash-btn">
+            Pay in Cash
+        </button>
+    </form>
+
 </div>
+
+<form id="payment-success-form" method="POST" action="/payment/success/" style="display:none;">
+    {% csrf_token %}
+    <input type="hidden" name="razorpay_payment_id" id="razorpay_payment_id">
+    <input type="hidden" name="razorpay_order_id" id="razorpay_order_id">
+    <input type="hidden" name="razorpay_signature" id="razorpay_signature">
+</form>
 
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
     const options = {
-        key: "{{ razorpay_key }}",
-        amount: "{{ total }}00",
+        key: "{{ razorpay_key_id }}",
+        amount: "{{ amount }}00",
         currency: "INR",
         name: "ShowTime",
         description: "{{ movie_name }} Booking",
         order_id: "{{ order_id }}",
         handler: function (response) {
-            window.location.href = "/success/";
+            document.getElementById("razorpay_payment_id").value = response.razorpay_payment_id;
+            document.getElementById("razorpay_order_id").value = response.razorpay_order_id;
+            document.getElementById("razorpay_signature").value = response.razorpay_signature;
+            document.getElementById("payment-success-form").submit();
         },
         theme: {
             color: "#ff4d4d"
@@ -34,9 +61,113 @@
 
     const rzp = new Razorpay(options);
 
-    document.getElementById("pay-btn").onclick = function(e) {
+    document.getElementById("pay-btn").onclick = function (e) {
         e.preventDefault();
+        this.disabled = true;
         rzp.open();
+
+        setTimeout(() => {
+            this.disabled = false;
+        }, 3000);
     };
+
+    const expiresAt = new Date("{{ lock_expires_at }}");
+
+    function updateCountdown() {
+        const now = new Date();
+        const diff = expiresAt - now;
+
+        if (diff <= 0) {
+            document.getElementById("countdown").innerText = "Expired";
+            document.getElementById("pay-btn").disabled = true;
+            window.location.href = "/seats/";
+            return;
+        }
+
+        const minutes = Math.floor(diff / 1000 / 60);
+        const seconds = Math.floor((diff / 1000) % 60);
+
+        document.getElementById("countdown").innerText =
+            `${minutes}m ${seconds < 10 ? "0" : ""}${seconds}s`;
+    }
+
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
 </script>
+
+<style>
+    body {
+        background: #0f0f0f;
+        color: white;
+        font-family: Arial, sans-serif;
+    }
+
+    .payment-card{
+        width: 420px;
+        margin: 0 auto;
+        background: #181818;
+        padding: 30px;
+        border-radius: 18px;
+        text-align: center;
+        box-shadow: 0 4px 18px rgba(0,0,0,.3);
+    }
+
+    .payment-card h2{
+        margin-top: 0;
+        margin-bottom: 18px;
+    }
+
+    .payment-card p{
+        font-size: 16px;
+        margin: 12px 0;
+        color: #ddd;
+    }
+
+    .timer-text{
+        font-size: 18px;
+        color: #ffcc66;
+        margin-top: 18px;
+    }
+
+    .pay-btn{
+        width: 100%;
+        margin-top: 20px;
+        padding: 12px 26px;
+        border: none;
+        border-radius: 10px;
+        background: #ff4d4d;
+        color: white;
+        font-size: 16px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: 0.3s;
+    }
+
+    .pay-btn:hover{
+        background: #ff1f1f;
+    }
+
+    .pay-btn:disabled{
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .cash-btn{
+        width: 100%;
+        padding: 12px 26px;
+        border: none;
+        border-radius: 10px;
+        background: #444;
+        color: white;
+        font-size: 16px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: 0.3s;
+    }
+
+    .cash-btn:hover{
+        background: #666;
+    }
+</style>
+
 {% endblock %}

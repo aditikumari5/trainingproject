@@ -186,3 +186,15 @@ STATICFILES_DIRS = [
 # -------------------------
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# -------------------------
+# TMDB API KEY
+# -------------------------
+
+TMDB_API_KEY = os.getenv("TMDB_API_KEY")
+
+TMDB_IMAGE_BASE_URL = os.getenv(
+    "TMDB_IMAGE_BASE_URL",
+    "https://image.tmdb.org/t/p/w500"
+)
+

@@ -2,85 +2,101 @@
 
 {% block content %}
 
-<h1 style="text-align:center;">
-    {{ movie }}
+<h1 style="text-align:center; margin-bottom:35px;">
+    {{ movie }} Show Timings 🎬
 </h1>
 
-<div class="timings">
+<div class="shows-container">
 
-    {% for show in show %}
+    {% for show in shows %}
 
-    <a href="/seats/?show_id={{ show.id }}">
+    <div class="show-card">
 
-    
-    <div class="time-card">
-        <span class="time">
+        <h2>{{ movie }}</h2>
 
-        {{ show.show_time }}
-        </span>
+        <p>
+            ⏰ {{ show.show_time }}
+        </p>
 
-        <span class="price">
-            {% if show.show_time.hour < 12 %}
-            ₹120
+        <a
+    href="/seats/?show_id={{ show.id }}"
+    class="select-btn"
+>
+    Select Seats
+</a>
 
-            {% if show.show_time.hour < 17 %}
-            ₹180
-
-            {% else %}
-            ₹250
-
-            {% endif %}
-        </span>
     </div>
-    </a>
+
+    {% empty %}
+
+    <div class="no-shows">
+        No shows available for this movie.
+    </div>
 
     {% endfor %}
+
 </div>
 
 <style>
 
-    body{
-        background: #0f0f0f;
-        color: white;
-    }
+body{
+    background:#0f0f0f;
+    color:white;
+}
 
-    
-    .timings{
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 20px;
-        margin-top: 40px;
-    }
+.shows-container{
+    display:flex;
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:30px;
+    padding:20px;
+}
 
-    .time-card{
-        background: #1f1f1f;
-        padding: 20px 30px;
-        border-radius: 12px;
-        text-align: center;
-        transition: 0.3s;
-        cursor: pointer;
-    }
+.show-card{
+    width:250px;
+    background:#1b1b1b;
+    padding:25px;
+    border-radius:18px;
+    text-align:center;
+    box-shadow:0 4px 18px rgba(0,0,0,.35);
+    transition:0.3s;
+}
 
-    .time-card:hover{
-        background: #e50914;
-        transform: scale(1.05);
-    }
+.show-card:hover{
+    transform:translateY(-6px);
+}
 
-    .time{
-        font-size: 20px;
-        display: block;
-    }
+.show-card h2{
+    margin-bottom:15px;
+    font-size:24px;
+}
 
-    .price{
-        font-size: 14px;
-        opacity: 0.7;
-    }
+.show-card p{
+    margin-bottom:18px;
+    font-size:18px;
+    color:#ddd;
+}
 
-    a{
-        text-decoration: none;
-        color: white;
-    }
+.select-btn{
+    display:inline-block;
+    padding:12px 24px;
+    background:#ff4d4d;
+    color:white;
+    text-decoration:none;
+    border-radius:10px;
+    font-weight:bold;
+    transition:0.3s;
+}
+
+.select-btn:hover{
+    background:#ff1f1f;
+}
+
+.no-shows{
+    font-size:20px;
+    color:#bbb;
+}
+
 </style>
 
-{% endlock %}
+{% endblock %}

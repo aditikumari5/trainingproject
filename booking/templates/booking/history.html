@@ -2,95 +2,258 @@
 
 {% block content %}
 
-<h1>My Bookings 🎟</h1>
+<h1 style="text-align:center; margin-bottom:30px;">
+    My Bookings 🎟
+</h1>
 
+{% if messages %}
+    {% for message in messages %}
+        <div style="background:#27ae60; color:white; padding:12px 16px; border-radius:10px; margin:0 auto 20px; max-width:900px; text-align:center;">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
 
-{% for booking in bookings %}
+<div class="bookings-container">
 
-<div class="card">
+    {% for booking in bookings %}
 
-<h2>🎬 Avengers</h2>
+    <div class="booking-card">
 
-<p>
-Booking ID:
-{{ booking.id }}
-</p>
+        <div class="booking-header">
+            <div class="movie-icon">🎬</div>
+            <div>
+                <h2>{{ booking.movie_name }}</h2>
+                <p class="booking-id">
+                    Booking ID: #{{ booking.id }}
+                </p>
+                <p class="booking-date">
+                    Booked on: {{ booking.booked_at|date:"d M Y, h:i A" }}
+                </p>
+            </div>
+        </div>
 
-<p>
-Booked On:
-{{ booking.booking_time }}
-</p>
+        <div class="booking-info">
+            <p><strong>Show Time:</strong> {{ booking.show_time }}</p>
+            <p><strong>Seats:</strong> {{ booking.seats }}</p>
+            <p><strong>Amount:</strong> ₹{{ booking.amount }}</p>
 
-<p>
-Seats:
-{% for seat in booking.seats.all %}
-<span class="seat">
-{{ seat.seat_number }}
-</span>
-{% endfor %}
-</p>
+            <p>
+                <strong>Payment Method:</strong>
+                <span class="badge {% if booking.payment_method == 'Cash' %}cash{% else %}online{% endif %}">
+                    {{ booking.payment_method }}
+                </span>
+            </p>
 
-<p class="status">
-Confirmed ✅
-</p>
+            <p>
+                <strong>Status:</strong>
+                <span class="badge confirmed">
+                    Confirmed
+                </span>
+            </p>
+        </div>
+
+        <a href="/ticket/{{ booking.id }}/" class="ticket-btn">
+            🎫 Download Ticket
+        </a>
+
+        <form
+            method="POST"
+            action="/booking/cancel/{{ booking.id }}/"
+            onsubmit="return confirm('Cancel this booking?');"
+        >
+            {% csrf_token %}
+            <button type="submit" class="cancel-btn">
+                Cancel Booking
+            </button>
+        </form>
+
+    </div>
+
+    {% empty %}
+
+    <div class="no-bookings">
+        <h2>No bookings yet</h2>
+        <p>Your confirmed bookings will appear here.</p>
+        <a href="/movies/" class="book-btn">Book a Movie</a>
+    </div>
+
+    {% endfor %}
 
 </div>
 
-{% empty %}
-
-<h3 style="text-align:center;">
-No bookings yet.
-</h3>
-
-{% endfor %}
-
-
-
 <style>
-
-h1{
-text-align:center;
-margin-top:35px;
-font-size:40px;
+body{
+    background:#0f0f0f;
+    color:white;
+    font-family:Arial,sans-serif;
 }
 
-.card{
-width:550px;
-margin:30px auto;
-padding:30px;
-background:white;
-color:black;
-border-radius:20px;
-box-shadow:0 0 15px rgba(0,0,0,.2);
+.bookings-container{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:center;
+    gap:25px;
+    padding:20px;
 }
 
-.card h2{
-margin-bottom:20px;
-color:#ff4d4d;
+.booking-card{
+    width:340px;
+    background:#181818;
+    border-radius:20px;
+    padding:22px;
+    box-shadow:0 6px 22px rgba(0,0,0,.35);
+    transition:0.3s;
 }
 
-.card p{
-font-size:18px;
-margin:12px 0;
+.booking-card:hover{
+    transform:translateY(-6px);
 }
 
-.seat{
-display:inline-block;
-background:#28a745;
-color:white;
-padding:8px 14px;
-border-radius:8px;
-margin:5px;
-font-weight:bold;
+.booking-header{
+    display:flex;
+    gap:15px;
+    align-items:center;
+    margin-bottom:18px;
 }
 
-.status{
-color:green;
-font-weight:bold;
-font-size:20px;
-margin-top:20px;
+.movie-icon{
+    width:56px;
+    height:56px;
+    border-radius:16px;
+    background:#2a2a2a;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:28px;
+    flex-shrink:0;
 }
 
+.booking-header h2{
+    margin:0;
+    font-size:22px;
+    color:#fff;
+}
+
+.booking-id{
+    margin-top:4px;
+    color:#ffcc66;
+    font-size:14px;
+}
+
+.booking-date{
+    margin-top:4px;
+    color:#aaa;
+    font-size:14px;
+}
+
+.booking-info p{
+    margin:12px 0;
+    color:#ddd;
+    font-size:16px;
+    line-height:1.5;
+}
+
+.badge{
+    display:inline-block;
+    padding:6px 12px;
+    border-radius:999px;
+    font-size:13px;
+    font-weight:bold;
+    margin-left:6px;
+}
+
+.badge.cash{
+    background:#555;
+    color:#fff;
+}
+
+.badge.online{
+    background:#2e7d32;
+    color:#fff;
+}
+
+.badge.confirmed{
+    background:#ff4d4d;
+    color:#fff;
+}
+
+.ticket-btn{
+    display:block;
+    width:100%;
+    text-align:center;
+    margin-top:14px;
+    padding:12px 18px;
+    background:#2e7d32;
+    color:white;
+    text-decoration:none;
+    border-radius:10px;
+    font-weight:bold;
+    transition:0.3s;
+}
+
+.ticket-btn:hover{
+    background:#1f5c26;
+}
+
+.cancel-btn{
+    width:100%;
+    margin-top:12px;
+    padding:12px 18px;
+    border:none;
+    border-radius:10px;
+    background:#c62828;
+    color:white;
+    font-weight:bold;
+    cursor:pointer;
+    transition:0.3s;
+}
+
+.cancel-btn:hover{
+    background:#a82020;
+}
+
+.no-bookings{
+    width:100%;
+    max-width:520px;
+    text-align:center;
+    background:#181818;
+    padding:40px 30px;
+    border-radius:20px;
+    box-shadow:0 6px 22px rgba(0,0,0,.35);
+    margin:30px auto 0;
+}
+
+.no-bookings h2{
+    margin-bottom:10px;
+}
+
+.no-bookings p{
+    color:#bbb;
+    margin-bottom:22px;
+}
+
+.book-btn{
+    display:inline-block;
+    padding:12px 24px;
+    background:#ff4d4d;
+    color:white;
+    text-decoration:none;
+    border-radius:10px;
+    font-weight:bold;
+    transition:0.3s;
+}
+
+.book-btn:hover{
+    background:#ff1f1f;
+}
+
+@media(max-width:600px){
+    .booking-card{
+        width:100%;
+        max-width:360px;
+    }
+}
 </style>
 
 {% endblock %}

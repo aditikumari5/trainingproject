@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+<h1 style="text-align:center; margin-bottom:30px;">Add Show ➕</h1>
+
+<form method="POST" style="max-width:650px; margin:0 auto; background:#181818; padding:25px; border-radius:18px;">
+    {% csrf_token %}
+
+    <select name="movie_id" required style="width:100%; margin-bottom:12px; padding:12px;">
+        <option value="">Select Movie</option>
+        {% for movie in movies %}
+            <option value="{{ movie.id }}">{{ movie.title }}</option>
+        {% endfor %}
+    </select>
+
+    <input
+        type="time"
+        name="show_time"
+        required
+        style="width:100%; margin-bottom:12px; padding:12px;"
+    >
+
+    <button type="submit" style="padding:12px 24px; background:#ff4d4d; color:white; border:none; border-radius:10px; font-weight:bold;">
+        Save Show
+    </button>
+</form>
+
+{% endblock %}

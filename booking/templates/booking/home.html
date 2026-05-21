@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+
+{% block content %}
+
+{% if movies %}
+
+<div class="hero-section">
+
+    <div class="hero-backdrop">
+
+        {% if movies.0.backdrop_path %}
+            <img
+                src="https://image.tmdb.org/t/p/w1280{{ movies.0.backdrop_path }}"
+                alt="{{ movies.0.title }}"
+            >
+        {% endif %}
+
+    </div>
+
+    <div class="hero-overlay">
+
+        <div class="hero-content">
+
+            <h1>{{ movies.0.title }}</h1>
+
+            <p>
+                {{ movies.0.overview|truncatewords:35 }}
+            </p>
+
+            <div class="hero-buttons">
+
+                <a href="/movie/{{ movies.0.id }}/" class="watch-btn">
+                    ▶ View Details
+                </a>
+
+                <a href="/shows/?movie_id={{ movies.0.id }}" class="book-btn">
+                    🎟 Book Now
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endif %}
+
+<div class="section-header">
+    <h2>Trending Movies 🔥</h2>
+</div>
+
+<div class="movie-row">
+
+    {% for movie in movies %}
+
+    <div class="movie-card">
+
+        <a href="/movie/{{ movie.id }}/">
+
+            {% if movie.poster_path %}
+                <img
+                    src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}"
+                    alt="{{ movie.title }}"
+                >
+            {% endif %}
+
+        </a>
+
+        <div class="movie-info">
+
+            <h3>{{ movie.title }}</h3>
+
+            <p>
+                ⭐ {{ movie.rating|floatformat:1 }}
+            </p>
+
+            <p>
+                {{ movie.genre|default:"Genre N/A" }}
+            </p>
+
+        </div>
+
+    </div>
+
+    {% endfor %}
+
+</div>
+
+<style>
+
+body{
+    background:#0f0f0f;
+    color:white;
+    font-family:Arial,sans-serif;
+    margin:0;
+}
+
+/* HERO */
+
+.hero-section{
+    position:relative;
+    height:85vh;
+    overflow:hidden;
+}
+
+.hero-backdrop img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+.hero-overlay{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    background:linear-gradient(
+        to right,
+        rgba(0,0,0,.92) 25%,
+        rgba(0,0,0,.55) 55%,
+        rgba(0,0,0,.2)
+    );
+    display:flex;
+    align-items:center;
+}
+
+.hero-content{
+    max-width:650px;
+    padding-left:70px;
+}
+
+.hero-content h1{
+    font-size:68px;
+    margin-bottom:18px;
+}
+
+.hero-content p{
+    color:#ddd;
+    line-height:1.8;
+    font-size:18px;
+    margin-bottom:28px;
+}
+
+/* BUTTONS */
+
+.hero-buttons{
+    display:flex;
+    gap:18px;
+    flex-wrap:wrap;
+}
+
+.watch-btn,
+.book-btn{
+    display:inline-block;
+    padding:14px 28px;
+    border-radius:12px;
+    text-decoration:none;
+    font-weight:bold;
+    transition:.3s;
+}
+
+.watch-btn{
+    background:white;
+    color:black;
+}
+
+.book-btn{
+    background:#ff4d4d;
+    color:white;
+}
+
+.watch-btn:hover,
+.book-btn:hover{
+    transform:translateY(-3px);
+}
+
+/* SECTION */
+
+.section-header{
+    padding:40px 40px 10px;
+}
+
+.section-header h2{
+    font-size:34px;
+}
+
+/* MOVIE ROW */
+
+.movie-row{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:24px;
+    padding:20px 40px 60px;
+}
+
+.movie-card{
+    background:#181818;
+    border-radius:18px;
+    overflow:hidden;
+    transition:.3s;
+    box-shadow:0 4px 18px rgba(0,0,0,.35);
+}
+
+.movie-card:hover{
+    transform:translateY(-6px) scale(1.02);
+}
+
+.movie-card img{
+    width:100%;
+    height:340px;
+    object-fit:cover;
+}
+
+.movie-info{
+    padding:18px;
+}
+
+.movie-info h3{
+    margin-bottom:10px;
+}
+
+.movie-info p{
+    color:#ccc;
+    margin:6px 0;
+}
+
+/* RESPONSIVE */
+
+@media(max-width:768px){
+
+    .hero-content{
+        padding:30px;
+    }
+
+    .hero-content h1{
+        font-size:42px;
+    }
+
+    .hero-content p{
+        font-size:16px;
+    }
+
+}
+
+</style>
+
+{% endblock %}
