@@ -1,596 +1,305 @@
-from datetime import datetime, timedelta
-import json
+import hashlib
+import hmac
+import io
 import random
+import re
+from datetime import datetime, timedelta
 
+import qrcode
+import razorpay
+import requests
 from django.conf import settings
 from django.contrib import messages
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
-from django.db.models import Count, Sum, Q
-from django.http import HttpResponse
-from django.shortcuts import render, redirect, get_object_or_404
+from django.core.mail import EmailMessage, send_mail
+from django.db import transaction
+from django.db.models import Count, Sum
+from django.db.models.functions import TruncDate
+from django.http import FileResponse, HttpResponse, HttpResponseBadRequest
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
-
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
 
-import razorpay
+from .models import Booking, Movie, Seat, Show, Wishlist 
 
-from .models import (
-    Booking,
-    Movie,
-    Seat,
-    Show,
-    Wishlist,
-)
+from .models import ContinueWatching
+from .models import Wishlist
 
 
-# =====================================
-# HOME
-# =====================================
-
-def home(request):
-
-    trending_movies = Movie.objects.filter(
-        is_active=True
-    ).order_by(
-        "-rating",
-        "-vote_count"
-    )[:8]
-
-    return render(
-        request,
-        "booking/home.html",
-        {
-            "trending_movies": trending_movies
-        }
-    )
+BOOKING_HAS_USER_FIELD = any(f.name == "user" for f in Booking._meta.get_fields())
+MOVIE_HAS_BUDGET_FIELD = any(f.name == "budget_level" for f in Movie._meta.get_fields())
 
 
-# =====================================
-# MOVIES
-# =====================================
+# ---------------------------
+# HELPERS
+# ---------------------------
 
-def movies(request):
+def ensure_seats_for_show(show):
+    if Seat.objects.filter(show=show).exists():
+        return
 
-    query = request.GET.get("q", "")
-    selected_genre = request.GET.get("genre", "")
+    for row in ["A", "B", "C", "D", "E", "F"]:
+        for num in range(1, 11):
+            if row in ["A", "B"]:
+                price = 300
+            elif row in ["C", "D"]:
+                price = 200
+            else:
+                price = 150
 
-    movies = Movie.objects.filter(
-        is_active=True
-    )
-
-    if query:
-
-        movies = movies.filter(
-            Q(title__icontains=query)
-            |
-            Q(genre__icontains=query)
-        )
-
-    if selected_genre:
-
-        movies = movies.filter(
-            genre__icontains=selected_genre
-        )
-
-    all_genres = []
-
-    genre_movies = Movie.objects.exclude(
-        genre=""
-    )
-
-    for movie in genre_movies:
-
-        genres = movie.genre.split(",")
-
-        for g in genres:
-
-            g = g.strip()
-
-            if g and g not in all_genres:
-                all_genres.append(g)
-
-    all_genres.sort()
-
-    return render(
-        request,
-        "booking/movies.html",
-        {
-            "movies": movies,
-            "query": query,
-            "selected_genre": selected_genre,
-            "all_genres": all_genres,
-        },
-    )
-
-
-# =====================================
-# MOVIE DETAIL
-# =====================================
-
-def movie_detail(request, movie_id):
-
-    movie = get_object_or_404(
-        Movie,
-        id=movie_id,
-        is_active=True
-    )
-
-    trailer_url = None
-
-    return render(
-        request,
-        "booking/movie_detail.html",
-        {
-            "movie": movie,
-            "trailer_url": trailer_url,
-        },
-    )
-
-
-# =====================================
-# SHOW TIMINGS
-# =====================================
-
-def show_timings(request):
-
-    movie_id = request.GET.get("movie_id")
-
-    movie = get_object_or_404(
-        Movie,
-        id=movie_id
-    )
-
-    timings = [
-        "10:00 AM",
-        "1:00 PM",
-        "4:00 PM",
-        "7:00 PM",
-        "10:00 PM",
-    ]
-
-    return render(
-        request,
-        "booking/show_timings.html",
-        {
-            "movie": movie,
-            "timings": timings,
-        },
-    )
-
-
-# =====================================
-# SHOW SEATS
-# =====================================
-
-@login_required
-def show_seats(request):
-
-    movie_name = request.GET.get("movie")
-    show_time = request.GET.get("time")
-
-    rows = ["A", "B", "C", "D", "E"]
-    cols = range(1, 9)
-
-    all_seats = []
-
-    for row in rows:
-
-        for col in cols:
-
-            seat_number = f"{row}{col}"
-
-            all_seats.append(
-                {
-                    "seat_number": seat_number,
-                    "price": 150,
-                }
+            Seat.objects.create(
+                seat_number=f"{row}{num}",
+                show=show,
+                is_booked=False,
+                price=price,
             )
 
-    return render(
-        request,
-        "booking/seats.html",
-        {
-            "movie": movie_name,
-            "show_time": show_time,
-            "all_seats": all_seats,
-        },
-    )
 
-
-# =====================================
-# BOOK MULTIPLE
-# =====================================
-
-@login_required
-def book_multiple(request):
-
-    if request.method != "POST":
-        return redirect("/movies/")
-
-    selected_seats = request.POST.getlist(
-        "selected_seats"
-    )
-
-    if not selected_seats:
-
-        messages.error(
-            request,
-            "Please select at least one seat."
-        )
-
-        return redirect(
-            request.META.get(
-                "HTTP_REFERER",
-                "/movies/"
-            )
-        )
-
-    request.session["movie_name"] = request.POST.get(
-        "movie"
-    )
-
-    request.session["show_time"] = request.POST.get(
-        "show_time"
-    )
-
-    request.session["selected_seats"] = selected_seats
-
-    amount = len(selected_seats) * 150
-
-    request.session["amount"] = amount
-
-    return redirect("/payment/")
-
-
-# =====================================
-# PAYMENT PAGE
-# =====================================
-
-@login_required
-def payment_view(request):
-
-    movie_name = request.session.get(
-        "movie_name"
-    )
-
-    show_time = request.session.get(
-        "show_time"
-    )
-
-    seats = request.session.get(
-        "selected_seats"
-    )
-
-    amount = request.session.get(
-        "amount"
-    )
-
-    client = razorpay.Client(
-        auth=(
-            settings.RAZORPAY_KEY_ID,
-            settings.RAZORPAY_KEY_SECRET,
-        )
-    )
-
-    payment_data = {
-        "amount": amount * 100,
-        "currency": "INR",
-        "payment_capture": 1,
-    }
-
-    order = client.order.create(
-        data=payment_data
-    )
-
-    request.session[
-        "razorpay_order_id"
-    ] = order["id"]
-
-    return render(
-        request,
-        "booking/payment.html",
-        {
-            "movie_name": movie_name,
-            "show_time": show_time,
-            "seats": ", ".join(seats),
-            "amount": amount,
-            "order_id": order["id"],
-            "razorpay_key_id": settings.RAZORPAY_KEY_ID,
-        },
-    )
-
-
-# =====================================
-# PAYMENT SUCCESS
-# =====================================
-
-@login_required
-@csrf_exempt
-def payment_success(request):
-
-    if request.method != "POST":
-        return redirect("/movies/")
-
-    booking = Booking.objects.create(
-        user=request.user,
-        movie_name=request.session.get(
-            "movie_name"
-        ),
-        show_time=request.session.get(
-            "show_time"
-        ),
-        seats=", ".join(
-            request.session.get(
-                "selected_seats",
-                []
-            )
-        ),
-        amount=request.session.get(
-            "amount"
-        ),
-        razorpay_order_id=request.POST.get(
-            "razorpay_order_id"
-        ),
-        razorpay_payment_id=request.POST.get(
-            "razorpay_payment_id"
-        ),
-        payment_status=True,
-        payment_method="Online",
-    )
-
-    return render(
-        request,
-        "booking/thank_you.html",
-        {
-            "booking": booking
-        },
-    )
-
-
-# =====================================
-# CASH PAYMENT SUCCESS
-# =====================================
-
-@login_required
-def cash_payment_success(request):
-
-    booking = Booking.objects.create(
-        user=request.user,
-        movie_name=request.session.get(
-            "movie_name"
-        ),
-        show_time=request.session.get(
-            "show_time"
-        ),
-        seats=", ".join(
-            request.session.get(
-                "selected_seats",
-                []
-            )
-        ),
-        amount=request.session.get(
-            "amount"
-        ),
-        razorpay_order_id="CASH",
-        razorpay_payment_id="CASH",
-        payment_status=True,
-        payment_method="Cash",
-    )
-
-    return render(
-        request,
-        "booking/thank_you.html",
-        {
-            "booking": booking
-        },
-    )
-
-
-# =====================================
-# DOWNLOAD PDF
-# =====================================
-
-@login_required
-def download_ticket_pdf(
-    request,
-    booking_id
-):
-
-    booking = get_object_or_404(
-        Booking,
-        id=booking_id
-    )
-
-    response = HttpResponse(
-        content_type="application/pdf"
-    )
-
-    response[
-        "Content-Disposition"
-    ] = f'attachment; filename="ticket_{booking.id}.pdf"'
-
-    p = canvas.Canvas(response)
-
-    p.setFont(
-        "Helvetica-Bold",
-        20
-    )
-
-    p.drawString(
-        180,
-        800,
-        "ShowTime Movie Ticket"
-    )
-
-    p.setFont(
-        "Helvetica",
-        14
-    )
-
-    p.drawString(
-        100,
-        730,
-        f"Movie: {booking.movie_name}"
-    )
-
-    p.drawString(
-        100,
-        690,
-        f"Show Time: {booking.show_time}"
-    )
-
-    p.drawString(
-        100,
-        650,
-        f"Seats: {booking.seats}"
-    )
-
-    p.drawString(
-        100,
-        610,
-        f"Amount: ₹{booking.amount}"
-    )
-
-    p.drawString(
-        100,
-        570,
+def generate_ticket_pdf_buffer(booking):
+    qr_data = (
+        f"Booking ID: {booking.id}\n"
+        f"Movie: {booking.movie_name}\n"
+        f"Show Time: {booking.show_time}\n"
+        f"Seats: {booking.seats}\n"
+        f"Amount: ₹{booking.amount}\n"
         f"Payment Method: {booking.payment_method}"
     )
 
-    p.drawString(
-        100,
-        530,
-        f"Booking ID: #{booking.id}"
+    qr = qrcode.QRCode(
+        version=2,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=6,
+        border=2,
     )
+    qr.add_data(qr_data)
+    qr.make(fit=True)
+
+    qr_img = qr.make_image(fill_color="black", back_color="white")
+    qr_buffer = io.BytesIO()
+    qr_img.save(qr_buffer, format="PNG")
+    qr_buffer.seek(0)
+
+    buffer = io.BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+
+    p.setFont("Helvetica-Bold", 26)
+    p.drawString(170, 750, "ShowTime Ticket")
+    p.line(50, 730, 560, 730)
+
+    p.setFont("Helvetica", 16)
+    details = [
+        f"Booking ID: #{booking.id}",
+        f"Movie: {booking.movie_name}",
+        f"Show Time: {booking.show_time}",
+        f"Seats: {booking.seats}",
+        f"Amount Paid: ₹{booking.amount}",
+        f"Payment Method: {booking.payment_method}",
+        f"Booking Date: {booking.booked_at.strftime('%d %b %Y %I:%M %p')}",
+    ]
+
+    y = 680
+    for detail in details:
+        p.drawString(70, y, detail)
+        y -= 35
+
+    qr_reader = ImageReader(qr_buffer)
+    p.drawImage(qr_reader, 380, 470, width=120, height=120, mask="auto")
+
+    p.setFont("Helvetica-Bold", 12)
+    p.drawString(395, 455, "SCAN QR AT ENTRY")
+
+    p.setFont("Helvetica-Oblique", 12)
+    p.drawString(150, 120, "Thank you for booking with ShowTime 🎬")
 
     p.showPage()
     p.save()
+    buffer.seek(0)
+    return buffer
 
-    return response
+
+def send_otp_email(receiver_email, otp):
+    try:
+        send_mail(
+            "ShowTime OTP Verification",
+            f"Your OTP is {otp}",
+            getattr(settings, "DEFAULT_FROM_EMAIL", settings.EMAIL_HOST_USER),
+            [receiver_email],
+            fail_silently=False,
+        )
+    except Exception as e:
+        print("MAIL ERROR:", e)
 
 
-# =====================================
-# MY BOOKINGS
-# =====================================
+def send_booking_confirmation_email(user_email, booking):
+    if not user_email:
+        return
 
-@login_required
-def my_bookings(request):
+    subject = f"ShowTime Booking Confirmed - {booking.movie_name}"
+    html_content = f"""
+    <h2>Booking Confirmed 🎟</h2>
+    <p><b>Movie:</b> {booking.movie_name}</p>
+    <p><b>Show Time:</b> {booking.show_time}</p>
+    <p><b>Seats:</b> {booking.seats}</p>
+    <p><b>Amount:</b> ₹{booking.amount}</p>
+    <p><b>Payment:</b> {booking.payment_method}</p>
+    <p>Thank you for booking with <b>ShowTime</b> 🍿</p>
+    """
 
-    bookings = Booking.objects.filter(
-        user=request.user
-    ).order_by(
-        "-booked_at"
+    email = EmailMessage(
+        subject,
+        html_content,
+        getattr(settings, "DEFAULT_FROM_EMAIL", settings.EMAIL_HOST_USER),
+        [user_email],
+    )
+    email.content_subtype = "html"
+
+    try:
+        pdf_buffer = generate_ticket_pdf_buffer(booking)
+        email.attach(
+            f"ShowTime_Ticket_{booking.id}.pdf",
+            pdf_buffer.getvalue(),
+            "application/pdf",
+        )
+    except Exception as e:
+        print("PDF ATTACHMENT ERROR:", e)
+
+    try:
+        email.send()
+    except Exception as e:
+        print("BOOKING EMAIL ERROR:", e)
+
+
+def release_expired_locks():
+    Seat.objects.filter(
+        is_locked=True,
+        lock_expires_at__isnull=False,
+        lock_expires_at__lt=timezone.now(),
+    ).update(
+        is_locked=False,
+        locked_by="",
+        locked_at=None,
+        lock_expires_at=None,
     )
 
-    return render(
-        request,
-        "booking/history.html",
-        {
-            "bookings": bookings
-        },
+
+def lock_seats(seats, lock_owner, minutes=5):
+    expires_at = timezone.now() + timedelta(minutes=minutes)
+    for seat in seats:
+        seat.is_locked = True
+        seat.locked_by = lock_owner
+        seat.locked_at = timezone.now()
+        seat.lock_expires_at = expires_at
+        seat.save()
+    return expires_at
+
+
+def get_youtube_trailer_url(movie_title: str):
+    api_key = getattr(settings, "YOUTUBE_API_KEY", None)
+    if not api_key:
+        return None
+
+    url = "https://www.googleapis.com/youtube/v3/search"
+    params = {
+        "part": "snippet",
+        "q": f"{movie_title} official trailer",
+        "type": "video",
+        "order": "viewCount",
+        "videoEmbeddable": "true",
+        "maxResults": 5,
+        "key": api_key,
+    }
+
+    try:
+        response = requests.get(url, params=params, timeout=15)
+        response.raise_for_status()
+        items = response.json().get("items", [])
+        if not items:
+            return None
+        video_id = items[0]["id"]["videoId"]
+        return f"https://www.youtube.com/watch?v={video_id}"
+    except Exception:
+        return None
+
+
+def release_seats_for_booking(booking):
+    show = Show.objects.filter(
+        movie_name__iexact=booking.movie_name,
+        show_time=str(booking.show_time),
+    ).first()
+    if not show:
+        return
+
+    seat_numbers = [s.strip() for s in (booking.seats or "").split(",") if s.strip()]
+    Seat.objects.filter(
+        show=show,
+        seat_number__in=seat_numbers,
+    ).update(
+        is_booked=False,
+        is_locked=False,
+        locked_by="",
+        locked_at=None,
+        lock_expires_at=None,
     )
 
 
-# =====================================
-# CANCEL BOOKING
-# =====================================
+def get_user_preferred_genres(user):
+    if not BOOKING_HAS_USER_FIELD:
+        return []
 
-@login_required
-def cancel_booking(
-    request,
-    booking_id
-):
+    try:
+        bookings = Booking.objects.filter(user=user).order_by("-booked_at")
+    except Exception:
+        return []
 
-    booking = get_object_or_404(
-        Booking,
-        id=booking_id,
-        user=request.user,
-    )
+    genre_counter = {}
+    for booking in bookings:
+        movie = Movie.objects.filter(title__iexact=booking.movie_name).first()
+        if not movie:
+            continue
+        genres = [g.strip() for g in (movie.genre or "").split(",") if g.strip()]
+        for genre in genres:
+            genre_counter[genre] = genre_counter.get(genre, 0) + 1
 
-    booking.delete()
+    sorted_genres = sorted(genre_counter.items(), key=lambda x: x[1], reverse=True)
+    return [genre for genre, _ in sorted_genres[:3]]
 
-    messages.success(
-        request,
-        "Booking cancelled successfully."
-    )
-
-    return redirect("/my-bookings/")
-
-
-# =====================================
-# TRENDING DETECTION
-# =====================================
 
 def get_trending_movies():
-
-    recent_days = (
-        timezone.now()
-        - timedelta(days=7)
-    )
-
+    recent_days = timezone.now() - timedelta(days=7)
     trending_scores = {}
-
-    movies = Movie.objects.filter(
-        is_active=True
-    )
+    movies = Movie.objects.filter(is_active=True)
 
     for movie in movies:
-
-        score = 0
-
-        rating = float(
-            movie.rating or 0
-        )
+        score = 0.0
+        rating = float(movie.rating or 0)
+        votes = int(movie.vote_count or 0)
 
         score += rating * 10
-
-        votes = int(
-            movie.vote_count or 0
-        )
-
-        score += min(
-            votes / 100,
-            25
-        )
+        score += min(votes / 100, 25)
 
         recent_bookings = Booking.objects.filter(
             movie_name=movie.title,
-            booked_at__gte=recent_days
+            booked_at__gte=recent_days,
         ).count()
-
         score += recent_bookings * 15
 
         try:
-
             if movie.release_date:
-
-                if isinstance(
-                    movie.release_date,
-                    str
-                ):
-
-                    release_date = datetime.fromisoformat(
-                        movie.release_date
-                    ).date()
-
+                if isinstance(movie.release_date, str):
+                    release_date = datetime.fromisoformat(movie.release_date).date()
                 else:
-
                     release_date = movie.release_date
-
-                days_old = (
-                    timezone.localdate()
-                    - release_date
-                ).days
-
+                days_old = (timezone.localdate() - release_date).days
                 if days_old <= 30:
                     score += 25
-
                 elif days_old <= 90:
                     score += 10
-
         except Exception:
             pass
 
@@ -598,185 +307,882 @@ def get_trending_movies():
 
     trending_movies = sorted(
         movies,
-        key=lambda m: trending_scores.get(
-            m.id,
-            0
-        ),
-        reverse=True
+        key=lambda m: trending_scores.get(m.id, 0),
+        reverse=True,
     )
-
     return trending_movies[:10]
 
 
-# =====================================
-# AI RECOMMEND
-# =====================================
+# ---------------------------
+# SIGNUP / OTP / AUTH
+# ---------------------------
 
-def ai_recommend(request):
+def signup_view(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        email = request.POST.get("email")
+        password = request.POST.get("password")
 
-    query = request.GET.get("q", "")
-    budget = request.GET.get("budget", "")
-    genre_filter = request.GET.get("genre", "")
-    min_rating = request.GET.get("min_rating", "")
-    sort_by = request.GET.get("sort_by", "")
+        if not username or not email or not password:
+            return render(request, "booking/signup.html", {"error": "All fields are required"})
 
-    movies = Movie.objects.filter(
-        is_active=True
+        if len(password) < 6:
+            return render(request, "booking/signup.html", {"error": "Password must be at least 6 characters"})
+
+        if not any(char.isdigit() for char in password):
+            return render(request, "booking/signup.html", {"error": "Password must contain a number"})
+
+        if User.objects.filter(username=username).exists():
+            return render(request, "booking/signup.html", {"error": "Username already exists"})
+
+        if User.objects.filter(email=email).exists():
+            return render(request, "booking/signup.html", {"error": "Email already registered"})
+
+        user = User.objects.create_user(username=username, email=email, password=password)
+        otp = random.randint(100000, 999999)
+        request.session["signup_otp"] = str(otp)
+        request.session["signup_user_id"] = user.id
+        send_otp_email(email, otp)
+        return redirect("/verify-signup-otp/")
+
+    return render(request, "booking/signup.html")
+
+
+def signup_otp(request):
+    if request.method == "POST":
+        entered_otp = request.POST.get("otp")
+        saved_otp = request.session.get("signup_otp")
+
+        if entered_otp == saved_otp:
+            user_id = request.session.get("signup_user_id")
+            user = get_object_or_404(User, id=user_id)
+            login(request, user)
+            request.session.pop("signup_otp", None)
+            request.session.pop("signup_user_id", None)
+            return redirect("/movies/")
+
+        return render(request, "booking/verify_signup_otp.html", {"error": "Invalid OTP"})
+
+    return render(request, "booking/verify_signup_otp.html")
+
+
+def otp_login(request):
+    if request.method == "POST":
+        email = request.POST.get("email")
+        user = User.objects.filter(email=email).first()
+        if not user:
+            return render(request, "booking/otp_login.html", {"error": "Email not registered"})
+
+        otp = random.randint(100000, 999999)
+        request.session["otp"] = str(otp)
+        request.session["user_id"] = user.id
+        send_otp_email(user.email, otp)
+        return redirect("/verify-otp/")
+
+    return render(request, "booking/otp_login.html")
+
+
+def verify_otp(request):
+    if request.method == "POST":
+        entered_otp = request.POST.get("otp")
+        saved_otp = request.session.get("otp")
+
+        if entered_otp == saved_otp:
+            user_id = request.session.get("user_id")
+            user = get_object_or_404(User, id=user_id)
+            login(request, user)
+            request.session.pop("otp", None)
+            request.session.pop("user_id", None)
+            return redirect("/movies/")
+
+        return render(request, "booking/verify_otp.html", {"error": "Invalid OTP"})
+
+    return render(request, "booking/verify_otp.html")
+
+
+def logout_view(request):
+    logout(request)
+    return redirect("/")
+
+
+# ---------------------------
+# HOME 
+# ---------------------------
+
+def home(request):
+    trending_movies = get_trending_movies()
+    wishlist_movie_ids = get_wishlist_movie_ids(request)
+
+    continue_watching = []
+    because_sections = []
+
+    if request.user.is_authenticated:
+        continue_watching = get_continue_watching(request.user)
+        because_sections = get_because_you_watched(request.user)
+
+    return render(
+        request,
+        "booking/home.html",
+        {
+            "trending_movies": trending_movies,
+            "continue_watching": continue_watching,
+            "because_sections": because_sections,
+            "wishlist_movie_ids": wishlist_movie_ids,
+        },
     )
+# ---------------------------
+#  MOVIES
+# ---------------------------
+
+def movies(request):
+    movies = Movie.objects.filter(is_active=True).order_by("-release_date")
+    query = request.GET.get("q", "").strip()
+    genre = request.GET.get("genre", "").strip()
 
     if query:
+        movies = movies.filter(title__icontains=query)
 
-        movies = movies.filter(
-            Q(title__icontains=query)
-            |
-            Q(genre__icontains=query)
-            |
-            Q(overview__icontains=query)
-        )
+    if genre:
+        movies = movies.filter(genre__icontains=genre)
 
-    if budget:
-
-        movies = movies.filter(
-            budget_level=budget
-        )
-
-    if genre_filter:
-
-        movies = movies.filter(
-            genre__icontains=genre_filter
-        )
-
-    if min_rating:
-
-        movies = movies.filter(
-            rating__gte=float(min_rating)
-        )
-
-    if sort_by == "rating":
-
-        movies = movies.order_by(
-            "-rating"
-        )
-
-    elif sort_by == "votes":
-
-        movies = movies.order_by(
-            "-vote_count"
-        )
-
-    elif sort_by == "title":
-
-        movies = movies.order_by(
-            "title"
-        )
-
-    trending_movies = get_trending_movies()
-
-    trending_ids = [
-        tm.id for tm in trending_movies
+    all_genres = [
+        "Action", "Comedy", "Drama", "Horror", "Romance",
+        "Thriller", "Sci-Fi", "Adventure", "Animation", "Fantasy"
     ]
 
-    recommended = []
+    return render(
+        request,
+        "booking/movies.html",
+        {
+            "movies": movies,
+            "query": query,
+            "selected_genre": genre,
+            "all_genres": all_genres,
+        },
+    )
 
+
+# ---------------------------
+# MOVIE DETAILS
+# ---------------------------
+
+@login_required
+def movie_detail(request, movie_id):
+    movie = get_object_or_404(Movie, id=movie_id, is_active=True)
+
+    trailer_key = None
+    trailer_url = get_youtube_trailer_url(movie.title)
+    tmdb_api_key = getattr(settings, "TMDB_API_KEY", None)
+
+    if tmdb_api_key and movie.tmdb_id:
+        videos_url = f"https://api.themoviedb.org/3/movie/{movie.tmdb_id}/videos"
+        params = {"api_key": tmdb_api_key, "language": "en-US"}
+        try:
+            response = requests.get(videos_url, params=params, timeout=15)
+            response.raise_for_status()
+            videos = response.json().get("results", [])
+
+            official_trailer = None
+            trailer_or_teaser = None
+            any_youtube = None
+
+            for video in videos:
+                if video.get("site") != "YouTube" or not video.get("key"):
+                    continue
+                if any_youtube is None:
+                    any_youtube = video
+                if video.get("type") in ["Trailer", "Teaser"] and trailer_or_teaser is None:
+                    trailer_or_teaser = video
+                if video.get("type") == "Trailer" and video.get("official") is True:
+                    official_trailer = video
+                    break
+
+            chosen = official_trailer or trailer_or_teaser or any_youtube
+            if chosen:
+                trailer_key = chosen.get("key")
+                trailer_url = f"https://www.youtube.com/watch?v={trailer_key}"
+        except requests.RequestException:
+            pass
+
+    return render(
+        request,
+        "booking/movie_detail.html",
+        {
+            "movie": movie,
+            "trailer_key": trailer_key,
+            "trailer_url": trailer_url,
+        },
+    )
+
+
+# ---------------------------
+# SHOW TIMINGS / SEATS
+# ---------------------------
+
+@login_required
+def show_timings(request):
+    movie_id = request.GET.get("movie_id")
+    if not movie_id:
+        return redirect("/movies/")
+
+    movie = get_object_or_404(Movie, id=movie_id, is_active=True)
+    shows = Show.objects.filter(movie_name__iexact=movie.title).order_by("show_time")
+
+    if not shows.exists():
+        default_times = ["10:00:00", "14:00:00", "18:00:00"]
+        for time_str in default_times:
+            show = Show.objects.create(movie_name=movie.title, show_time=time_str)
+            ensure_seats_for_show(show)
+        shows = Show.objects.filter(movie_name__iexact=movie.title).order_by("show_time")
+    else:
+        for show in shows:
+            ensure_seats_for_show(show)
+
+    return render(
+        request,
+        "booking/show_timings.html",
+        {"movie": movie.title, "shows": shows},
+    )
+
+
+@login_required
+def show_seats(request):
+    show_id = request.GET.get("show_id")
+    if not show_id:
+        return redirect("/movies/")
+
+    release_expired_locks()
+    show = get_object_or_404(Show, id=show_id)
+    ensure_seats_for_show(show)
+
+    seats = Seat.objects.filter(show=show).order_by("seat_number")
+    request.session["show_id"] = show.id
+    request.session["movie_name"] = show.movie_name
+    request.session["show_time"] = str(show.show_time)
+
+    return render(
+        request,
+        "booking/seats.html",
+        {
+            "seats": seats,
+            "movie": show.movie_name,
+            "show_time": show.show_time,
+            "now": timezone.now(),
+        },
+    )
+
+
+@login_required
+def book_seat(request, seat_id):
+    with transaction.atomic():
+        seat = Seat.objects.select_for_update().get(id=seat_id)
+        if seat.is_booked:
+            return HttpResponse("Seat already booked")
+        if seat.is_locked and seat.lock_expires_at and seat.lock_expires_at > timezone.now():
+            return HttpResponse("Seat temporarily locked")
+        seat.is_booked = True
+        seat.save()
+
+    return HttpResponse("Seat booked successfully")
+
+
+@login_required
+def book_multiple(request):
+    if request.method != "POST":
+        return redirect("/seats/")
+
+    seat_ids = request.POST.getlist("seats")
+    if not seat_ids:
+        return redirect("/seats/")
+
+    release_expired_locks()
+
+    with transaction.atomic():
+        selected_seats = Seat.objects.select_for_update().filter(id__in=seat_ids)
+
+        if not selected_seats.exists():
+            return redirect("/seats/")
+
+        if selected_seats.values("show").distinct().count() != 1:
+            return HttpResponseBadRequest("Selected seats must belong to the same show")
+
+        if selected_seats.filter(is_booked=True).exists():
+            return HttpResponse("One or more selected seats are already booked")
+
+        if selected_seats.filter(is_locked=True).exists():
+            return HttpResponse("One or more selected seats are temporarily locked")
+
+        show = selected_seats.first().show
+        lock_owner = request.session.session_key
+        if not lock_owner:
+            request.session.create()
+            lock_owner = request.session.session_key
+
+        expires_at = lock_seats(selected_seats, lock_owner, minutes=5)
+
+        request.session["booked_seats"] = seat_ids
+        request.session["show_id"] = show.id
+        request.session["movie_name"] = show.movie_name
+        request.session["show_time"] = str(show.show_time)
+        request.session["seats"] = ", ".join(seat.seat_number for seat in selected_seats)
+        request.session["amount"] = sum(seat.price for seat in selected_seats)
+        request.session["lock_expires_at"] = expires_at.isoformat()
+
+    return redirect("/payment/")
+
+
+# ---------------------------
+# PAYMENT
+# ---------------------------
+
+@login_required
+def payment_view(request):
+    release_expired_locks()
+
+    movie_name = request.session.get("movie_name", "Unknown Movie")
+    show_time = request.session.get("show_time", "Unknown Time")
+    seats = request.session.get("seats", "N/A")
+    amount = int(request.session.get("amount", 500))
+    lock_expires_at = request.session.get("lock_expires_at")
+
+    if not lock_expires_at:
+        return redirect("/seats/")
+
+    try:
+        expires_at = datetime.fromisoformat(lock_expires_at)
+        if timezone.is_naive(expires_at):
+            expires_at = timezone.make_aware(expires_at)
+    except Exception:
+        return redirect("/seats/")
+
+    if timezone.now() > expires_at:
+        request.session.pop("booked_seats", None)
+        request.session.pop("show_id", None)
+        request.session.pop("movie_name", None)
+        request.session.pop("show_time", None)
+        request.session.pop("seats", None)
+        request.session.pop("amount", None)
+        request.session.pop("lock_expires_at", None)
+        return redirect("/seats/")
+
+    client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+    order = client.order.create({"amount": amount * 100, "currency": "INR", "payment_capture": 1})
+    request.session["razorpay_order_id"] = order["id"]
+
+    return render(
+        request,
+        "booking/payment.html",
+        {
+            "razorpay_key_id": settings.RAZORPAY_KEY_ID,
+            "order_id": order["id"],
+            "amount": amount,
+            "movie_name": movie_name,
+            "show_time": show_time,
+            "seats": seats,
+            "lock_expires_at": lock_expires_at,
+        },
+    )
+
+
+@csrf_exempt
+@login_required
+def payment_success(request):
+    if request.method != "POST":
+        return HttpResponseBadRequest("Invalid request")
+
+    razorpay_payment_id = request.POST.get("razorpay_payment_id")
+    razorpay_order_id = request.POST.get("razorpay_order_id")
+    razorpay_signature = request.POST.get("razorpay_signature")
+
+    if not razorpay_payment_id or not razorpay_order_id or not razorpay_signature:
+        return HttpResponseBadRequest("Missing payment details")
+
+    generated_signature = hmac.new(
+        key=settings.RAZORPAY_KEY_SECRET.encode(),
+        msg=f"{razorpay_order_id}|{razorpay_payment_id}".encode(),
+        digestmod=hashlib.sha256,
+    ).hexdigest()
+
+    if not hmac.compare_digest(generated_signature, razorpay_signature):
+        return HttpResponseBadRequest("Payment signature verification failed")
+
+    seat_ids = request.session.get("booked_seats", [])
+    if not seat_ids:
+        return HttpResponseBadRequest("No seats found in session")
+
+    with transaction.atomic():
+        selected_seats = Seat.objects.select_for_update().filter(id__in=seat_ids)
+        if selected_seats.count() != len(seat_ids):
+            return HttpResponseBadRequest("Some seats are missing")
+
+        if selected_seats.filter(is_booked=True).exists():
+            return HttpResponse("One or more seats are already booked")
+
+        for seat in selected_seats:
+            seat.is_booked = True
+            seat.is_locked = False
+            seat.locked_by = ""
+            seat.locked_at = None
+            seat.lock_expires_at = None
+            seat.save()
+
+        booking_kwargs = {
+            "movie_name": request.session.get("movie_name", "Unknown Movie"),
+            "show_time": request.session.get("show_time", "Unknown Time"),
+            "seats": request.session.get("seats", "N/A"),
+            "amount": int(request.session.get("amount", 500)),
+            "razorpay_order_id": razorpay_order_id,
+            "razorpay_payment_id": razorpay_payment_id,
+            "payment_status": True,
+            "payment_method": "Online",
+        }
+        if BOOKING_HAS_USER_FIELD:
+            booking_kwargs["user"] = request.user
+
+        booking = Booking.objects.create(**booking_kwargs)
+
+    send_booking_confirmation_email(request.user.email, booking)
+
+    request.session.pop("booked_seats", None)
+    request.session.pop("show_id", None)
+    request.session.pop("movie_name", None)
+    request.session.pop("show_time", None)
+    request.session.pop("seats", None)
+    request.session.pop("amount", None)
+    request.session.pop("razorpay_order_id", None)
+    request.session.pop("lock_expires_at", None)
+
+    return render(request, "booking/thank_you.html", {"booking": booking})
+
+
+@login_required
+def cash_payment_success(request):
+    if request.method != "POST":
+        return redirect("/payment/")
+
+    seat_ids = request.session.get("booked_seats", [])
+    if not seat_ids:
+        return redirect("/seats/")
+
+    with transaction.atomic():
+        selected_seats = Seat.objects.select_for_update().filter(id__in=seat_ids)
+        if selected_seats.count() != len(seat_ids):
+            return HttpResponse("Some seats are missing")
+
+        if selected_seats.filter(is_booked=True).exists():
+            return HttpResponse("One or more seats are already booked")
+
+        for seat in selected_seats:
+            seat.is_booked = True
+            seat.is_locked = False
+            seat.locked_by = ""
+            seat.locked_at = None
+            seat.lock_expires_at = None
+            seat.save()
+
+        booking_kwargs = {
+            "movie_name": request.session.get("movie_name", "Unknown Movie"),
+            "show_time": request.session.get("show_time", "Unknown Time"),
+            "seats": request.session.get("seats", "N/A"),
+            "amount": int(request.session.get("amount", 500)),
+            "razorpay_order_id": "CASH",
+            "razorpay_payment_id": "CASH",
+            "payment_status": True,
+            "payment_method": "Cash",
+        }
+        if BOOKING_HAS_USER_FIELD:
+            booking_kwargs["user"] = request.user
+
+        booking = Booking.objects.create(**booking_kwargs)
+
+    send_booking_confirmation_email(request.user.email, booking)
+
+    request.session.pop("booked_seats", None)
+    request.session.pop("show_id", None)
+    request.session.pop("movie_name", None)
+    request.session.pop("show_time", None)
+    request.session.pop("seats", None)
+    request.session.pop("amount", None)
+    request.session.pop("razorpay_order_id", None)
+    request.session.pop("lock_expires_at", None)
+
+    return render(request, "booking/thank_you.html", {"booking": booking})
+
+
+# ---------------------------
+# HISTORY
+# ---------------------------
+
+@login_required
+def my_bookings(request):
+    if BOOKING_HAS_USER_FIELD:
+        bookings = Booking.objects.filter(user=request.user).order_by("-booked_at")
+    else:
+        bookings = Booking.objects.all().order_by("-booked_at")
+
+    return render(request, "booking/history.html", {"bookings": bookings})
+
+
+# ---------------------------
+# PDF TICKET
+# ---------------------------
+
+@login_required
+def download_ticket_pdf(request, booking_id):
+    booking = get_object_or_404(Booking, id=booking_id)
+
+    if BOOKING_HAS_USER_FIELD and not request.user.is_staff and booking.user_id != request.user.id:
+        return HttpResponseBadRequest("You are not allowed to download this ticket.")
+
+    buffer = generate_ticket_pdf_buffer(booking)
+    return FileResponse(buffer, as_attachment=True, filename=f"ticket_{booking.id}.pdf")
+
+
+# ---------------------------
+# ADMIN DASHBOARD / MOVIES / SHOWS / BOOKINGS
+# ---------------------------
+
+@staff_member_required
+def admin_dashboard(request):
+    total_movies = Movie.objects.filter(is_active=True).count()
+    total_shows = Show.objects.count()
+    total_bookings = Booking.objects.filter(payment_status=True).count()
+    total_earnings = Booking.objects.filter(payment_status=True).aggregate(total=Sum("amount"))["total"] or 0
+    recent_bookings = Booking.objects.all().order_by("-booked_at")[:8]
+
+    return render(
+        request,
+        "booking/admin_dashboard.html",
+        {
+            "total_movies": total_movies,
+            "total_shows": total_shows,
+            "total_bookings": total_bookings,
+            "total_earnings": total_earnings,
+            "recent_bookings": recent_bookings,
+        },
+    )
+
+
+@staff_member_required
+def admin_movies(request):
+    movies = Movie.objects.all().order_by("-id")
+    return render(request, "booking/admin_movies.html", {"movies": movies})
+
+
+@staff_member_required
+def admin_add_movie(request):
+    if request.method == "POST":
+        title = request.POST.get("title")
+        overview = request.POST.get("overview")
+        poster_path = request.POST.get("poster_path")
+        backdrop_path = request.POST.get("backdrop_path")
+        release_date = request.POST.get("release_date")
+        duration = request.POST.get("duration") or 0
+        rating = request.POST.get("rating") or 0
+        vote_count = request.POST.get("vote_count") or 0
+        genre = request.POST.get("genre") or ""
+        tmdb_id = request.POST.get("tmdb_id") or None
+        is_active = request.POST.get("is_active") == "on"
+
+        Movie.objects.create(
+            title=title,
+            overview=overview,
+            poster_path=poster_path,
+            backdrop_path=backdrop_path,
+            release_date=release_date if release_date else None,
+            duration=int(duration) if duration else 0,
+            rating=float(rating) if rating else 0,
+            vote_count=int(vote_count) if vote_count else 0,
+            genre=genre,
+            tmdb_id=int(tmdb_id) if tmdb_id else None,
+            is_active=is_active,
+        )
+        return redirect("/admin-movies/")
+
+    return render(request, "booking/admin_add_movie.html")
+
+
+@staff_member_required
+def admin_delete_movie(request, movie_id):
+    movie = get_object_or_404(Movie, id=movie_id)
+    movie.delete()
+    return redirect("/admin-movies/")
+
+
+@staff_member_required
+def admin_shows(request):
+    shows = Show.objects.all().order_by("-id")
+    movies = Movie.objects.filter(is_active=True).order_by("title")
+    return render(request, "booking/admin_shows.html", {"shows": shows, "movies": movies})
+
+
+@staff_member_required
+def admin_add_show(request):
+    movies = Movie.objects.filter(is_active=True).order_by("title")
+
+    if request.method == "POST":
+        movie_id = request.POST.get("movie_id")
+        show_time = request.POST.get("show_time")
+        movie = get_object_or_404(Movie, id=movie_id, is_active=True)
+        show = Show.objects.create(movie_name=movie.title, show_time=show_time)
+        ensure_seats_for_show(show)
+        return redirect("/admin-shows/")
+
+    return render(request, "booking/admin_add_show.html", {"movies": movies})
+
+
+@staff_member_required
+def admin_delete_show(request, show_id):
+    show = get_object_or_404(Show, id=show_id)
+    show.delete()
+    return redirect("/admin-shows/")
+
+
+@staff_member_required
+def admin_bookings(request):
+    bookings = Booking.objects.all().order_by("-booked_at")
+
+    total_earnings = Booking.objects.filter(payment_status=True).aggregate(total=Sum("amount"))["total"] or 0
+    total_bookings = Booking.objects.filter(payment_status=True).count()
+
+    top_movies_qs = (
+        Booking.objects.filter(payment_status=True)
+        .values("movie_name")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:5]
+    )
+    top_movies_labels = [item["movie_name"] for item in top_movies_qs]
+    top_movies_counts = [item["count"] for item in top_movies_qs]
+
+    today = timezone.localdate()
+    start_date = today - timedelta(days=6)
+
+    earnings_qs = (
+        Booking.objects.filter(payment_status=True, booked_at__date__gte=start_date)
+        .annotate(day=TruncDate("booked_at"))
+        .values("day")
+        .annotate(total=Sum("amount"))
+        .order_by("day")
+    )
+    earnings_map = {item["day"]: item["total"] for item in earnings_qs}
+
+    daily_labels = []
+    daily_earnings = []
+    for i in range(7):
+        day = start_date + timedelta(days=i)
+        daily_labels.append(day.strftime("%d %b"))
+        daily_earnings.append(int(earnings_map.get(day, 0) or 0))
+
+    total_seats = Seat.objects.count()
+    booked_seats = Seat.objects.filter(is_booked=True).count()
+    occupancy_percent = round((booked_seats / total_seats) * 100, 1) if total_seats else 0
+
+    peak_show_qs = (
+        Booking.objects.filter(payment_status=True)
+        .values("show_time")
+        .annotate(count=Count("id"))
+        .order_by("-count")[:5]
+    )
+    peak_show_labels = [item["show_time"] for item in peak_show_qs]
+    peak_show_counts = [item["count"] for item in peak_show_qs]
+
+    return render(
+        request,
+        "booking/admin_bookings.html",
+        {
+            "bookings": bookings,
+            "total_earnings": total_earnings,
+            "total_bookings": total_bookings,
+            "top_movies_labels": top_movies_labels,
+            "top_movies_counts": top_movies_counts,
+            "daily_labels": daily_labels,
+            "daily_earnings": daily_earnings,
+            "occupancy_percent": occupancy_percent,
+            "booked_seats": booked_seats,
+            "total_seats": total_seats,
+            "peak_show_labels": peak_show_labels,
+            "peak_show_counts": peak_show_counts,
+        },
+    )
+
+
+# ---------------------------
+# AI RECOMMENDATION
+# ---------------------------
+
+@login_required
+def ai_recommend(request):
+    query = request.GET.get("q", "").strip().lower()
+    budget = request.GET.get("budget", "").strip().lower()
+    genre_filter = request.GET.get("genre", "").strip().lower()
+    min_rating = request.GET.get("min_rating", "").strip()
+    sort_by = request.GET.get("sort_by", "").strip()
+
+    movies = Movie.objects.filter(is_active=True)
+    preferred_genres = get_user_preferred_genres(request.user)
+    trending_movies = get_trending_movies()
+    trending_ids = [tm.id for tm in trending_movies]
+
+    if budget in ["low", "medium", "high"] and MOVIE_HAS_BUDGET_FIELD:
+        try:
+            movies = movies.filter(budget_level=budget)
+        except Exception:
+            pass
+
+    if genre_filter:
+        movies = movies.filter(genre__icontains=genre_filter)
+
+    if min_rating:
+        try:
+            movies = movies.filter(rating__gte=float(min_rating))
+        except ValueError:
+            pass
+
+    def safe_float(value):
+        try:
+            return float(value or 0)
+        except Exception:
+            return 0.0
+
+    def safe_int(value):
+        try:
+            return int(value or 0)
+        except Exception:
+            return 0
+
+    mood_map = {
+        "sad": ["drama", "romance"],
+        "emotional": ["drama", "romance"],
+        "happy": ["comedy", "animation", "family"],
+        "funny": ["comedy"],
+        "romantic": ["romance"],
+        "scary": ["horror", "thriller"],
+        "horror": ["horror"],
+        "thrilling": ["thriller", "action", "mystery"],
+        "action": ["action", "adventure"],
+        "adventure": ["adventure", "fantasy"],
+        "space": ["sci-fi"],
+        "sci-fi": ["sci-fi"],
+        "family": ["family", "animation", "adventure"],
+        "dark": ["thriller", "crime", "horror"],
+        "mystery": ["mystery", "thriller"],
+    }
+    popular_words = {"popular", "trending", "best", "top", "hit", "famous"}
+
+    scored_movies = []
     for movie in movies:
+        title = (movie.title or "").lower()
+        genre = (movie.genre or "").lower()
+        overview = (movie.overview or "").lower()
+        rating = safe_float(movie.rating)
+        votes = safe_int(movie.vote_count)
+        budget_level = (getattr(movie, "budget_level", "") or "").lower()
 
-        score = 0
-
+        score = 0.0
         reasons = []
 
         if movie.id in trending_ids:
+            trend_position = trending_ids.index(movie.id) + 1
+            score += max(40 - trend_position * 3, 10)
+            reasons.append("Trending Now")
 
-            trend_position = (
-                trending_ids.index(movie.id) + 1
-            )
+        movie_genres = [g.strip().lower() for g in (movie.genre or "").split(",") if g.strip()]
+        for pref in preferred_genres:
+            if pref.lower() in movie_genres or pref.lower() in genre:
+                score += 50
+                reasons.append(f"Because you watched {pref}")
 
-            score += max(
-                40 - trend_position * 3,
-                10
-            )
+        if query:
+            terms = [t for t in re.split(r"[\s,]+", query) if t]
 
-            reasons.append(
-                "Trending Now"
-            )
+            if query in title:
+                score += 60
+                reasons.append("Title match")
+            if query in genre:
+                score += 45
+                reasons.append("Genre match")
+            if query in overview:
+                score += 20
+                reasons.append("Description match")
 
-        score += movie.rating * 10
+            for term in terms:
+                if term in popular_words:
+                    score += 15
+                    reasons.append("Popular choice")
 
-        if movie.vote_count > 1000:
+                mapped_genres = mood_map.get(term, [])
+                for mapped in mapped_genres:
+                    if mapped in genre:
+                        score += 35
+                        reasons.append(f"{term.title()} vibe")
+                        break
 
-            score += 20
+                if term in title:
+                    score += 25
+                if term in overview:
+                    score += 10
+        else:
+            score += rating * 12
+            score += min(votes / 50, 30)
+            reasons.append("Trending pick")
 
-            reasons.append(
-                "Popular"
-            )
+        if budget in ["low", "medium", "high"] and MOVIE_HAS_BUDGET_FIELD:
+            if budget_level == budget:
+                score += 25
+                reasons.append(f"{budget.title()} budget")
+            else:
+                score -= 10
 
-        if budget and movie.budget_level == budget:
+        score += rating * 10
+        score += min(votes / 100, 25)
 
-            score += 15
+        if rating >= 8:
+            score += 8
+            reasons.append("High rated")
+        if votes >= 1000:
+            score += 5
+            reasons.append("Popular")
 
-            reasons.append(
-                "Budget Match"
-            )
+        release_date = getattr(movie, "release_date", None)
+        try:
+            if release_date:
+                if isinstance(release_date, str):
+                    release_date = datetime.fromisoformat(release_date).date()
+                days_old = (timezone.localdate() - release_date).days
+                if days_old <= 180:
+                    score += 8
+                    reasons.append("New release")
+        except Exception:
+            pass
 
-        if genre_filter and genre_filter.lower() in movie.genre.lower():
+        scored_movies.append({
+            "movie": movie,
+            "score": round(score, 1),
+            "reasons": list(dict.fromkeys(reasons))[:3],
+        })
 
-            score += 20
-
-            reasons.append(
-                "Genre Match"
-            )
-
-        recommended.append(
-            {
-                "movie": movie,
-                "score": round(score),
-                "reasons": reasons,
-            }
+    if sort_by == "rating":
+        scored_movies.sort(key=lambda x: safe_float(x["movie"].rating), reverse=True)
+    elif sort_by == "votes":
+        scored_movies.sort(key=lambda x: safe_int(x["movie"].vote_count), reverse=True)
+    elif sort_by == "title":
+        scored_movies.sort(key=lambda x: (x["movie"].title or "").lower())
+    else:
+        scored_movies.sort(
+            key=lambda item: (
+                item["score"],
+                safe_float(item["movie"].rating),
+                safe_int(item["movie"].vote_count),
+            ),
+            reverse=True,
         )
 
-    recommended.sort(
-        key=lambda x: x["score"],
-        reverse=True
-    )
-
-    preferred_genres = []
-
-    if request.user.is_authenticated:
-
-        bookings = Booking.objects.filter(
-            user=request.user
-        )
-
-        genre_count = {}
-
-        for booking in bookings:
-
-            movie = Movie.objects.filter(
-                title=booking.movie_name
-            ).first()
-
-            if movie and movie.genre:
-
-                genres = movie.genre.split(",")
-
-                for g in genres:
-
-                    g = g.strip()
-
-                    genre_count[g] = (
-                        genre_count.get(g, 0) + 1
-                    )
-
-        preferred_genres = sorted(
-            genre_count,
-            key=genre_count.get,
-            reverse=True
-        )[:3]
+    recommended = scored_movies[:12]
 
     return render(
         request,
         "booking/ai_recommend.html",
         {
-            "recommended": recommended,
             "query": query,
             "budget": budget,
             "genre_filter": genre_filter,
@@ -784,47 +1190,61 @@ def ai_recommend(request):
             "sort_by": sort_by,
             "preferred_genres": preferred_genres,
             "trending_movies": trending_movies,
+            "recommended": recommended,
         },
     )
 
 
-# =====================================
+# ---------------------------
+# CANCEL BOOKING
+# ---------------------------
+
+@login_required
+def cancel_booking(request, booking_id):
+    if request.method != "POST":
+        return redirect("/my-bookings/")
+
+    if BOOKING_HAS_USER_FIELD and not request.user.is_staff:
+        booking = get_object_or_404(Booking, id=booking_id, user=request.user)
+    else:
+        booking = get_object_or_404(Booking, id=booking_id)
+
+    with transaction.atomic():
+        release_seats_for_booking(booking)
+        booking.delete()
+
+    messages.success(request, "Booking cancelled successfully.")
+    return redirect("/my-bookings/")
+
+# ---------------------------
 # WISHLIST
-# =====================================
+# ---------------------------
 
 @login_required
 def wishlist_page(request):
 
     wishlist_items = (
-        Wishlist.objects.filter(
-            user=request.user
-        )
+        Wishlist.objects
+        .filter(user=request.user)
         .select_related("movie")
-        .order_by("-created_at")
+        .order_by("-id")
     )
 
     return render(
         request,
         "booking/wishlist.html",
         {
-            "wishlist_items": wishlist_items,
-        },
+            "wishlist_items": wishlist_items
+        }
     )
 
 
 @login_required
-def add_to_wishlist(
-    request,
-    movie_id
-):
-
-    if request.method != "POST":
-        return redirect("/movies/")
+def add_to_wishlist(request, movie_id):
 
     movie = get_object_or_404(
         Movie,
-        id=movie_id,
-        is_active=True
+        id=movie_id
     )
 
     Wishlist.objects.get_or_create(
@@ -846,18 +1266,11 @@ def add_to_wishlist(
 
 
 @login_required
-def remove_from_wishlist(
-    request,
-    movie_id
-):
-
-    if request.method != "POST":
-        return redirect("/wishlist/")
+def remove_from_wishlist(request, movie_id):
 
     movie = get_object_or_404(
         Movie,
-        id=movie_id,
-        is_active=True
+        id=movie_id
     )
 
     Wishlist.objects.filter(
@@ -867,7 +1280,7 @@ def remove_from_wishlist(
 
     messages.success(
         request,
-        f"{movie.title} removed from wishlist."
+        f"{movie.title} removed from wishlist"
     )
 
     return redirect(
@@ -878,166 +1291,137 @@ def remove_from_wishlist(
     )
 
 
-# =====================================
-# AUTH
-# =====================================
 
-def signup_view(request):
-    return render(
-        request,
-        "booking/signup.html"
+# ---------------------------
+# TRENDING MOVIES
+# ---------------------------
+
+def get_trending_movies():
+    recent_days = timezone.now() - timedelta(days=7)
+    trending_scores = {}
+
+    movies = Movie.objects.filter(is_active=True)
+
+    for movie in movies:
+        score = 0
+
+        rating = float(movie.rating or 0)
+        score += rating * 10
+
+        votes = int(movie.vote_count or 0)
+        score += min(votes / 100, 25)
+
+        recent_bookings = Booking.objects.filter(
+            movie_name=movie.title,
+            booked_at__gte=recent_days
+        ).count()
+        score += recent_bookings * 15
+
+        try:
+            if movie.release_date:
+                if isinstance(movie.release_date, str):
+                    release_date = datetime.fromisoformat(movie.release_date).date()
+                else:
+                    release_date = movie.release_date
+
+                days_old = (timezone.localdate() - release_date).days
+
+                if days_old <= 30:
+                    score += 25
+                elif days_old <= 90:
+                    score += 10
+        except Exception:
+            pass
+
+        trending_scores[movie.id] = score
+
+    trending_movies = sorted(
+        movies,
+        key=lambda m: trending_scores.get(m.id, 0),
+        reverse=True
     )
 
-
-def signup_otp(request):
-    return render(
-        request,
-        "booking/verify_signup_otp.html"
-    )
+    return trending_movies[:10]
 
 
-def otp_login(request):
-    return render(
-        request,
-        "booking/otp_login.html"
-    )
+# ---------------------------
+# CONTINUE WATCHING
+# ---------------------------
+def get_continue_watching(user):
 
+    if not user.is_authenticated:
+        return []
 
-def verify_otp(request):
-    return render(
-        request,
-        "booking/verify_otp.html"
-    )
-
-
-def logout_view(request):
-
-    logout(request)
-
-    return redirect("/")
-
-
-# =====================================
-# ADMIN DASHBOARD
-# =====================================
-
-@login_required
-def admin_dashboard(request):
-
-    total_bookings = Booking.objects.count()
-
-    total_revenue = (
-        Booking.objects.aggregate(
-            total=Sum("amount")
-        )["total"]
-        or 0
-    )
-
-    top_movies = (
-        Booking.objects.values(
-            "movie_name"
+    watching = (
+        ContinueWatching.objects
+        .filter(
+            user=user,
+            completed=False
         )
-        .annotate(
-            total=Count("id")
+        .select_related("movie")
+        .order_by("-updated_at")
+    )
+
+    return watching[:10]
+
+# ---------------------------
+# BECAUSE YOU WATCHED
+# ---------------------------
+
+def get_because_you_watched(user):
+
+    if not user.is_authenticated:
+        return []
+
+    watched = (
+        ContinueWatching.objects
+        .filter(user=user)
+        .select_related("movie")
+        .order_by("-updated_at")[:3]
+    )
+
+    recommendation_sections = []
+
+    for item in watched:
+
+        movie = item.movie
+
+        genres = (
+            movie.genre.lower().split(",")
+            if movie.genre
+            else []
         )
-        .order_by("-total")[:5]
-    )
 
-    peak_shows = (
-        Booking.objects.values(
-            "show_time"
+        similar_movies = Movie.objects.filter(
+            is_active=True
+        ).exclude(
+            id=movie.id
         )
-        .annotate(
-            total=Count("id")
-        )
-        .order_by("-total")[:5]
-    )
 
-    recent_bookings = Booking.objects.order_by(
-        "-booked_at"
-    )[:6]
+        for genre in genres[:2]:
 
-    occupancy_percentage = random.randint(
-        55,
-        95
-    )
+            similar_movies = similar_movies.filter(
+                genre__icontains=genre.strip()
+            )
 
-    trending_movies_count = Movie.objects.filter(
-        rating__gte=7.5
-    ).count()
+        similar_movies = similar_movies.order_by(
+            "-rating"
+        )[:10]
 
-    return render(
-        request,
-        "booking/admin_dashboard.html",
-        {
-            "total_bookings": total_bookings,
-            "total_revenue": total_revenue,
-            "top_movies": top_movies,
-            "peak_shows": peak_shows,
-            "recent_bookings": recent_bookings,
-            "occupancy_percentage": occupancy_percentage,
-            "trending_movies_count": trending_movies_count,
-        },
-    )
+        recommendation_sections.append({
+            "title": f"Because You Watched {movie.title}",
+            "movies": similar_movies
+        })
+
+    return recommendation_sections
 
 
-@login_required
-def admin_movies(request):
-
-    movies = Movie.objects.all().order_by(
-        "-id"
-    )
-
-    return render(
-        request,
-        "booking/admin_movies.html",
-        {
-            "movies": movies
-        },
-    )
-
-
-@login_required
-def admin_add_movie(request):
-
-    return render(
-        request,
-        "booking/admin_add_movie.html"
-    )
-
-
-@login_required
-def admin_delete_movie(
-    request,
-    movie_id
-):
-
-    movie = get_object_or_404(
-        Movie,
-        id=movie_id
-    )
-
-    movie.delete()
-
-    messages.success(
-        request,
-        "Movie deleted successfully."
-    )
-
-    return redirect("/admin-movies/")
-
-
-@login_required
-def admin_bookings(request):
-
-    bookings = Booking.objects.order_by(
-        "-booked_at"
-    )
-
-    return render(
-        request,
-        "booking/admin_bookings.html",
-        {
-            "bookings": bookings
-        },
+# ---------------------------
+# WISHLIST HELPER
+# ---------------------------
+def get_wishlist_movie_ids(request):
+    if not request.user.is_authenticated:
+        return []
+    return list(
+        Wishlist.objects.filter(user=request.user).values_list("movie_id", flat=True)
     )

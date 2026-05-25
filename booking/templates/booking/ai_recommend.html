@@ -1,12 +1,27 @@
-{% extends 'base.html' %}
+{% extends 'booking/base.html' %}
 
 {% block content %}
 
 <div class="ai-container">
 
-    <h1>AI Movie Assistant 🤖</h1>
-    <p class="subtitle">Search by mood, genre, budget, or sort the results dynamically.</p>
+    <!-- HERO -->
+    <section class="ai-hero">
+        <div class="ai-hero-overlay"></div>
 
+        <div class="ai-hero-content">
+            <p class="hero-badge">AI Movie Assistant</p>
+
+            <h1>
+                Find the perfect movie for your mood
+            </h1>
+
+            <p class="hero-text">
+                Search by genre, mood, budget, rating, or sort the results dynamically.
+            </p>
+        </div>
+    </section>
+
+    <!-- FILTER PANEL -->
     <form method="GET" class="filter-panel">
 
         <input
@@ -54,9 +69,12 @@
 
         </div>
 
-        <button type="submit" class="search-btn">Apply Filters</button>
+        <button type="submit" class="search-btn">
+            Apply Filters
+        </button>
     </form>
 
+    <!-- QUICK TAGS -->
     <div class="quick-tags">
         <a href="?q=action">Action</a>
         <a href="?q=emotional">Emotional</a>
@@ -66,6 +84,7 @@
         <a href="?q=popular">Popular</a>
     </div>
 
+    <!-- BUDGET CHIPS -->
     <div class="budget-section">
         <h2>Choose Budget</h2>
 
@@ -87,9 +106,11 @@
         </div>
     </div>
 
+    <!-- BECAUSE YOU WATCHED -->
     {% if preferred_genres %}
     <div class="watched-section">
-        <h2>Because You Watched 🎬</h2>
+        <h2>Because You Watched</h2>
+
         <div class="genre-pills">
             {% for genre in preferred_genres %}
                 <span class="genre-pill">{{ genre }}</span>
@@ -98,29 +119,41 @@
     </div>
     {% endif %}
 
+    <!-- TRENDING -->
     {% if trending_movies %}
-    <div class="trending-section">
-        <h2>🔥 Trending Now</h2>
+    <section class="section-block">
+        <div class="section-header">
+            <h2>🔥 Trending Now</h2>
+        </div>
 
-        <div class="trending-row">
+        <div class="trend-row">
             {% for movie in trending_movies %}
             <a href="/movie/{{ movie.id }}/" class="trend-card">
-                {% if movie.poster_path %}
+                <div class="trend-media">
                     <img
                         src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}"
                         alt="{{ movie.title }}"
                     >
-                {% else %}
-                    <div class="trend-no-poster">No Poster Available</div>
-                {% endif %}
+
+                    {% if movie.trailer_url %}
+                    <iframe
+                        class="trend-trailer"
+                        src="{{ movie.trailer_url }}"
+                        frameborder="0"
+                        allow="autoplay"
+                        allowfullscreen
+                    ></iframe>
+                    {% endif %}
+                </div>
 
                 <span>{{ movie.title }}</span>
             </a>
             {% endfor %}
         </div>
-    </div>
+    </section>
     {% endif %}
 
+    <!-- RECOMMENDATIONS -->
     <h2 class="result-title">
         {% if query %}
             Results for "{{ query }}"
@@ -135,19 +168,38 @@
         {% for item in recommended %}
         {% with movie=item.movie %}
         <div class="movie-card">
-            <a href="/movie/{{ movie.id }}/">
-                {% if movie.poster_path %}
-                    <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}" alt="{{ movie.title }}">
-                {% else %}
-                    <div class="no-poster">No Poster Available</div>
-                {% endif %}
+
+            <a href="/movie/{{ movie.id }}/" class="movie-link">
+                <div class="media-container">
+                    <img
+                        class="poster-image"
+                        src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}"
+                        alt="{{ movie.title }}"
+                    >
+
+                    {% if movie.trailer_url %}
+                    <iframe
+                        class="trailer-preview"
+                        src="{{ movie.trailer_url }}"
+                        frameborder="0"
+                        allow="autoplay"
+                        allowfullscreen
+                    ></iframe>
+                    {% endif %}
+                </div>
             </a>
 
-            <div class="movie-info">
+            <div class="movie-card-info">
                 <h3>{{ movie.title }}</h3>
-                <p>⭐ {{ movie.rating|floatformat:1 }}</p>
-                <p>{{ movie.genre|default:"Genre N/A" }}</p>
-                <p class="budget-label">Budget: {{ movie.budget_level|default:"medium" }}</p>
+
+                <div class="meta-row">
+                    <span>⭐ {{ movie.rating|floatformat:1 }}</span>
+                    <span>{{ movie.genre|default:"Genre N/A" }}</span>
+                </div>
+
+                <p class="budget-label">
+                    Budget: {{ movie.budget_level|default:"medium" }}
+                </p>
 
                 {% if item.score %}
                     <p class="score-line">Score: {{ item.score }}</p>
@@ -160,62 +212,126 @@
                         {% endfor %}
                     </div>
                 {% endif %}
+
+                <div class="card-actions">
+                    <a href="/movie/{{ movie.id }}/" class="watch-btn">
+                        Watch Now
+                    </a>
+
+                    {% if user.is_authenticated %}
+                        {% if movie.id in wishlist_movie_ids %}
+                        <form action="/wishlist/remove/{{ movie.id }}/" method="POST">
+                            {% csrf_token %}
+                            <button type="submit" class="wishlist-btn active-heart">
+                                ❤️
+                            </button>
+                        </form>
+                        {% else %}
+                        <form action="/wishlist/add/{{ movie.id }}/" method="POST">
+                            {% csrf_token %}
+                            <button type="submit" class="wishlist-btn">
+                                🤍
+                            </button>
+                        </form>
+                        {% endif %}
+                    {% endif %}
+                </div>
             </div>
         </div>
         {% endwith %}
         {% empty %}
-            <p class="no-results">No matching movies found.</p>
+            <div class="empty-box">
+                <h2>No matching movies found 😔</h2>
+                <p>Try another mood, budget, or genre.</p>
+            </div>
         {% endfor %}
     </div>
 
 </div>
 
 <style>
-body{
-    background:#0f0f0f;
-    color:white;
-    font-family:Arial,sans-serif;
-    margin:0;
-}
 .ai-container{
-    padding:40px 20px 60px;
-    max-width:1200px;
-    margin:0 auto;
+    background:#0b0b0b;
+    min-height:100vh;
+    padding-bottom:70px;
 }
-.ai-container h1{
-    text-align:center;
-    font-size:48px;
-    margin-bottom:10px;
+
+.ai-hero{
+    position:relative;
+    min-height:48vh;
+    display:flex;
+    align-items:center;
+    padding:0 6%;
+    background:
+        linear-gradient(rgba(0,0,0,.62), rgba(0,0,0,.92)),
+        url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=2070&auto=format&fit=crop');
+    background-size:cover;
+    background-position:center;
 }
-.subtitle{
-    text-align:center;
-    color:#bbb;
-    margin-bottom:30px;
+
+.ai-hero-overlay{
+    position:absolute;
+    inset:0;
 }
+
+.ai-hero-content{
+    position:relative;
+    z-index:2;
+    max-width:760px;
+}
+
+.hero-badge{
+    display:inline-block;
+    background:#ff4d4d;
+    color:white;
+    padding:8px 14px;
+    border-radius:999px;
+    font-size:13px;
+    font-weight:700;
+    margin-bottom:18px;
+}
+
+.ai-hero h1{
+    font-size:60px;
+    line-height:1.08;
+    margin-bottom:18px;
+}
+
+.hero-text{
+    font-size:18px;
+    line-height:1.8;
+    color:#d1d1d1;
+    max-width:700px;
+}
+
 .filter-panel{
+    margin:30px 5% 24px;
     background:#181818;
+    border:1px solid #242424;
     padding:20px;
-    border-radius:18px;
-    box-shadow:0 4px 18px rgba(0,0,0,.35);
-    margin-bottom:25px;
+    border-radius:20px;
+    box-shadow:0 4px 18px rgba(0,0,0,.28);
 }
+
 .search-input{
     width:100%;
     padding:16px;
     border:none;
-    border-radius:12px;
+    border-radius:14px;
     background:#111;
     color:white;
     font-size:16px;
     outline:none;
     margin-bottom:15px;
 }
+
 .filter-row{
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
     gap:12px;
     margin-bottom:15px;
 }
+
 .filter-select{
     width:100%;
     padding:14px;
@@ -225,6 +341,7 @@ body{
     color:white;
     outline:none;
 }
+
 .search-btn{
     width:100%;
     padding:14px;
@@ -232,16 +349,24 @@ body{
     border-radius:12px;
     background:#ff4d4d;
     color:white;
-    font-weight:bold;
+    font-weight:700;
     cursor:pointer;
+    transition:.3s;
 }
+
+.search-btn:hover{
+    transform:translateY(-1px);
+}
+
 .quick-tags{
     display:flex;
     justify-content:center;
     flex-wrap:wrap;
     gap:12px;
-    margin:25px 0 20px;
+    padding:0 5%;
+    margin:24px 0 18px;
 }
+
 .quick-tags a{
     padding:10px 18px;
     background:#181818;
@@ -249,21 +374,35 @@ body{
     text-decoration:none;
     color:white;
     transition:.3s;
+    border:1px solid #222;
 }
+
 .quick-tags a:hover{
     background:#ff4d4d;
+    border-color:#ff4d4d;
 }
-.budget-section{
+
+.budget-section,
+.watched-section{
+    padding:0 5%;
     text-align:center;
     margin:20px 0 10px;
 }
+
+.budget-section h2,
+.watched-section h2,
+.section-header h2,
+.result-title{
+    margin-bottom:18px;
+}
+
 .budget-buttons{
     display:flex;
     justify-content:center;
     gap:12px;
     flex-wrap:wrap;
-    margin-top:12px;
 }
+
 .budget-buttons a{
     padding:10px 18px;
     background:#181818;
@@ -271,134 +410,188 @@ body{
     text-decoration:none;
     color:white;
     transition:.3s;
+    border:1px solid #222;
 }
+
 .budget-buttons a:hover,
 .budget-buttons a.active{
     background:#ff4d4d;
+    border-color:#ff4d4d;
 }
-.watched-section{
-    margin:30px 0;
-    text-align:center;
-}
+
 .genre-pills{
     display:flex;
     justify-content:center;
     gap:12px;
     flex-wrap:wrap;
-    margin-top:15px;
 }
+
 .genre-pill{
     background:#ff4d4d;
     padding:10px 18px;
     border-radius:999px;
     font-size:14px;
-    font-weight:bold;
+    font-weight:700;
 }
-.trending-section{
-    margin:40px 0;
+
+.section-block{
+    padding:40px 5% 10px;
 }
-.trending-section h2{
-    margin-bottom:20px;
+
+.section-header h2,
+.result-title{
+    font-size:30px;
 }
-.trending-row{
+
+.trend-row{
     display:flex;
     gap:18px;
     overflow-x:auto;
-    padding-bottom:10px;
+    padding-bottom:12px;
 }
-.trending-row::-webkit-scrollbar{
-    height:8px;
-}
-.trending-row::-webkit-scrollbar-thumb{
-    background:#ff4d4d;
-    border-radius:999px;
-}
+
 .trend-card{
     min-width:180px;
     text-decoration:none;
     color:white;
     transition:.3s;
 }
+
 .trend-card:hover{
     transform:scale(1.05);
 }
-.trend-card img{
+
+.trend-media{
+    position:relative;
     width:180px;
     height:260px;
+    overflow:hidden;
+    border-radius:14px;
+    background:#222;
+    margin-bottom:10px;
+}
+
+.trend-media img{
+    width:100%;
+    height:100%;
     object-fit:cover;
-    border-radius:14px;
-    margin-bottom:10px;
+    display:block;
 }
-.trend-no-poster{
-    width:180px;
-    height:260px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:#2a2a2a;
-    border-radius:14px;
-    margin-bottom:10px;
-    color:#bbb;
-    text-align:center;
-    padding:10px;
+
+.trend-trailer{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    opacity:0;
+    pointer-events:none;
+    transition:.3s;
 }
-.trend-card span{
-    font-size:14px;
-    font-weight:bold;
+
+.trend-card:hover .trend-media img{
+    opacity:0;
 }
-.result-title{
-    margin:25px 0;
-    text-align:center;
+
+.trend-card:hover .trend-trailer{
+    opacity:1;
 }
+
 .movie-grid{
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
     gap:24px;
+    padding:0 5%;
 }
+
 .movie-card{
     background:#181818;
     border-radius:18px;
     overflow:hidden;
-    transition:.3s;
+    transition:.35s;
     box-shadow:0 4px 18px rgba(0,0,0,.35);
+    position:relative;
 }
+
 .movie-card:hover{
-    transform:translateY(-6px);
+    transform:translateY(-8px) scale(1.01);
+    z-index:3;
 }
-.movie-card img{
-    width:100%;
-    height:330px;
-    object-fit:cover;
+
+.movie-link{
     display:block;
+    text-decoration:none;
+    color:white;
 }
-.no-poster{
+
+.media-container{
+    position:relative;
     width:100%;
     height:330px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    background:#2a2a2a;
-    color:#bbb;
-    text-align:center;
-    padding:10px;
+    overflow:hidden;
+    background:#000;
 }
-.movie-info{
+
+.poster-image{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    transition:.4s;
+}
+
+.trailer-preview{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    opacity:0;
+    pointer-events:none;
+    transition:.4s;
+}
+
+.movie-card:hover .poster-image{
+    opacity:0;
+}
+
+.movie-card:hover .trailer-preview{
+    opacity:1;
+}
+
+.movie-card-info{
     padding:18px;
 }
-.movie-info h3{
+
+.movie-card-info h3{
+    margin:0 0 12px;
+    font-size:20px;
+}
+
+.meta-row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
     margin-bottom:10px;
 }
-.movie-info p{
-    color:#ccc;
-    margin:6px 0;
+
+.meta-row span{
+    background:#111;
+    border:1px solid #222;
+    padding:7px 10px;
+    border-radius:999px;
+    font-size:13px;
+    color:#ddd;
 }
+
 .budget-label{
     color:#ffcc66;
+    margin:4px 0 10px;
 }
+
 .score-line{
     color:#8be28b;
-    font-weight:bold;
+    font-weight:700;
+    margin-bottom:10px;
 }
+
 .reason-pill{
     display:inline-block;
     margin:6px 6px 0 0;
@@ -408,9 +601,103 @@ body{
     color:#ddd;
     font-size:12px;
 }
-.no-results{
-    color:#bbb;
+
+.card-actions{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    margin-top:16px;
+}
+
+.watch-btn{
+    background:#ff4d4d;
+    color:white;
+    padding:10px 16px;
+    border-radius:10px;
+    font-size:14px;
+    font-weight:700;
+    white-space:nowrap;
+}
+
+.wishlist-btn{
+    width:42px;
+    height:42px;
+    border:none;
+    border-radius:50%;
+    background:#232323;
+    color:white;
+    font-size:18px;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.wishlist-btn:hover{
+    background:#ff4d4d;
+    transform:scale(1.08);
+}
+
+.active-heart{
+    background:#ff4d4d !important;
+}
+
+.empty-box{
+    grid-column:1 / -1;
+    background:#181818;
+    border:1px solid #242424;
+    border-radius:22px;
+    padding:50px 24px;
     text-align:center;
+    box-shadow:0 6px 24px rgba(0,0,0,.28);
+}
+
+@media(max-width:900px){
+    .ai-hero h1{
+        font-size:42px;
+    }
+
+    .hero-text{
+        font-size:16px;
+    }
+
+    .section-header h2,
+    .result-title{
+        font-size:24px;
+    }
+
+    .movie-grid{
+        grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+    }
+}
+
+@media(max-width:600px){
+    .ai-hero{
+        min-height:38vh;
+        padding:0 20px;
+    }
+
+    .ai-hero h1{
+        font-size:32px;
+    }
+
+    .movie-grid{
+        grid-template-columns:1fr;
+        padding:0 20px;
+    }
+
+    .section-block{
+        padding:30px 20px 0;
+    }
+
+    .filter-panel{
+        margin:24px 20px 20px;
+    }
+
+    .quick-tags,
+    .budget-section,
+    .watched-section{
+        padding:0 20px;
+    }
 }
 </style>
 

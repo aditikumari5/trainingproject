@@ -76,3 +76,36 @@ class Wishlist(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.movie.title}"
+    
+
+class ContinueWatching(models.Model):
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
+    )
+
+    movie = models.ForeignKey(
+        Movie,
+        on_delete=models.CASCADE
+    )
+
+    watched_seconds = models.IntegerField(
+        default=0
+    )
+
+    completed = models.BooleanField(
+        default=False
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
+
+    def __str__(self):
+        return f"{self.user.username} - {self.movie.title}"
+    
+trailer_url = models.URLField(
+    blank=True,
+    null=True
+)
