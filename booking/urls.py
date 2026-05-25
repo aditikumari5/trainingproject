@@ -34,6 +34,10 @@ urlpatterns = [
     path("ticket/<int:booking_id>/", views.download_ticket_pdf, name="download_ticket"),
     path("ai-recommend/", views.ai_recommend, name="ai_recommend"),
     path("booking/cancel/<int:booking_id>/", views.cancel_booking, name="cancel_booking"),
+
+    path("wishlist/", views.wishlist_page, name="wishlist"),
+    path("wishlist/add/<int:movie_id>/", views.add_to_wishlist, name="add_to_wishlist"),
+    path("wishlist/remove/<int:movie_id>/", views.remove_from_wishlist, name="remove_from_wishlist"),
     
 
 ]

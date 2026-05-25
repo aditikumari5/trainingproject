@@ -5,91 +5,98 @@
 {% if movies %}
 
 <div class="hero-section">
-
-    <div class="hero-backdrop">
-
+    <div class="hero-bg">
         {% if movies.0.backdrop_path %}
             <img
                 src="https://image.tmdb.org/t/p/w1280{{ movies.0.backdrop_path }}"
                 alt="{{ movies.0.title }}"
             >
         {% endif %}
-
     </div>
 
     <div class="hero-overlay">
-
         <div class="hero-content">
-
+            <p class="hero-badge">Featured Now</p>
             <h1>{{ movies.0.title }}</h1>
-
-            <p>
+            <p class="hero-text">
                 {{ movies.0.overview|truncatewords:35 }}
             </p>
 
-            <div class="hero-buttons">
-
-                <a href="/movie/{{ movies.0.id }}/" class="watch-btn">
-                    ▶ View Details
-                </a>
-
-                <a href="/shows/?movie_id={{ movies.0.id }}" class="book-btn">
-                    🎟 Book Now
-                </a>
-
+            <div class="hero-meta">
+                <span>⭐ {{ movies.0.rating|floatformat:1 }}</span>
+                <span>{{ movies.0.genre|default:"Genre N/A" }}</span>
+                <span>{{ movies.0.release_date|default:"N/A" }}</span>
             </div>
 
+            <div class="hero-actions">
+                <a href="/movie/{{ movies.0.id }}/" class="hero-btn primary">
+                    ▶ Watch Trailer
+                </a>
+                <a href="/shows/?movie_id={{ movies.0.id }}" class="hero-btn secondary">
+                    🎟 Book Now
+                </a>
+            </div>
         </div>
-
     </div>
-
 </div>
 
 {% endif %}
 
-<div class="section-header">
-    <h2>Trending Movies 🔥</h2>
-</div>
-
-<div class="movie-row">
-
-    {% for movie in movies %}
-
-    <div class="movie-card">
-
-        <a href="/movie/{{ movie.id }}/">
-
-            {% if movie.poster_path %}
-                <img
-                    src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}"
-                    alt="{{ movie.title }}"
-                >
-            {% endif %}
-
-        </a>
-
-        <div class="movie-info">
-
-            <h3>{{ movie.title }}</h3>
-
-            <p>
-                ⭐ {{ movie.rating|floatformat:1 }}
-            </p>
-
-            <p>
-                {{ movie.genre|default:"Genre N/A" }}
-            </p>
-
-        </div>
-
+<div class="section-wrap">
+    <div class="section-head">
+        <h2>Trending Now</h2>
+        <a href="/movies/">See all</a>
     </div>
 
-    {% endfor %}
+    <div class="movie-row">
+        {% for movie in movies %}
+        <div class="movie-card">
+            <a href="/movie/{{ movie.id }}/" class="movie-link">
+                {% if movie.poster_path %}
+                    <img
+                        src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}"
+                        alt="{{ movie.title }}"
+                        class="movie-poster"
+                    >
+                {% else %}
+                    <div class="no-poster">
+                        No Poster Available
+                    </div>
+                {% endif %}
 
+                <div class="movie-hover">
+                    <span class="play-pill">▶ Play</span>
+                </div>
+            </a>
+
+            <div class="movie-info">
+                <h3>{{ movie.title }}</h3>
+                <div class="movie-subinfo">
+                    <span>⭐ {{ movie.rating|floatformat:1 }}</span>
+                    <span>{{ movie.genre|default:"Genre N/A" }}</span>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="section-wrap">
+    <div class="section-head">
+        <h2>Popular Picks</h2>
+        <a href="/ai-recommend/">AI Picks</a>
+    </div>
+
+    <div class="mini-banner">
+        <div>
+            <h3>Find movies by mood, budget, and vibe</h3>
+            <p>Your AI assistant can recommend what to watch next.</p>
+        </div>
+        <a href="/ai-recommend/" class="mini-btn">Try AI Assistant</a>
+    </div>
 </div>
 
 <style>
-
 body{
     background:#0f0f0f;
     color:white;
@@ -97,154 +104,274 @@ body{
     margin:0;
 }
 
-/* HERO */
-
 .hero-section{
     position:relative;
-    height:85vh;
+    height:82vh;
+    min-height:620px;
     overflow:hidden;
 }
 
-.hero-backdrop img{
+.hero-bg img{
     width:100%;
     height:100%;
     object-fit:cover;
+    display:block;
+    filter:brightness(0.65);
 }
 
 .hero-overlay{
     position:absolute;
-    top:0;
-    left:0;
-    width:100%;
-    height:100%;
+    inset:0;
     background:linear-gradient(
         to right,
-        rgba(0,0,0,.92) 25%,
-        rgba(0,0,0,.55) 55%,
-        rgba(0,0,0,.2)
+        rgba(0,0,0,.92) 0%,
+        rgba(0,0,0,.72) 40%,
+        rgba(0,0,0,.18) 100%
     );
     display:flex;
     align-items:center;
 }
 
 .hero-content{
-    max-width:650px;
-    padding-left:70px;
+    max-width:720px;
+    padding:0 60px;
 }
 
-.hero-content h1{
-    font-size:68px;
+.hero-badge{
+    display:inline-block;
+    background:#ff4d4d;
+    color:white;
+    padding:8px 14px;
+    border-radius:999px;
+    font-size:13px;
+    font-weight:bold;
     margin-bottom:18px;
 }
 
-.hero-content p{
-    color:#ddd;
-    line-height:1.8;
-    font-size:18px;
-    margin-bottom:28px;
+.hero-content h1{
+    font-size:72px;
+    line-height:1.05;
+    margin:0 0 18px;
 }
 
-/* BUTTONS */
+.hero-text{
+    font-size:18px;
+    line-height:1.8;
+    color:#e5e5e5;
+    max-width:650px;
+    margin-bottom:22px;
+}
 
-.hero-buttons{
+.hero-meta{
     display:flex;
-    gap:18px;
+    gap:16px;
+    flex-wrap:wrap;
+    color:#ccc;
+    margin-bottom:26px;
+    font-size:15px;
+}
+
+.hero-actions{
+    display:flex;
+    gap:14px;
     flex-wrap:wrap;
 }
 
-.watch-btn,
-.book-btn{
-    display:inline-block;
-    padding:14px 28px;
-    border-radius:12px;
+.hero-btn{
     text-decoration:none;
+    padding:14px 24px;
+    border-radius:12px;
     font-weight:bold;
     transition:.3s;
 }
 
-.watch-btn{
+.hero-btn.primary{
     background:white;
     color:black;
 }
 
-.book-btn{
-    background:#ff4d4d;
+.hero-btn.secondary{
+    background:#2a2a2a;
     color:white;
 }
 
-.watch-btn:hover,
-.book-btn:hover{
+.hero-btn:hover{
     transform:translateY(-3px);
 }
 
-/* SECTION */
-
-.section-header{
-    padding:40px 40px 10px;
+.section-wrap{
+    padding:34px 42px 18px;
 }
 
-.section-header h2{
-    font-size:34px;
+.section-head{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:18px;
+    gap:12px;
 }
 
-/* MOVIE ROW */
+.section-head h2{
+    font-size:32px;
+    margin:0;
+}
+
+.section-head a{
+    color:#ff4d4d;
+    text-decoration:none;
+    font-weight:bold;
+}
 
 .movie-row{
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
-    gap:24px;
-    padding:20px 40px 60px;
+    gap:22px;
 }
 
 .movie-card{
     background:#181818;
     border-radius:18px;
     overflow:hidden;
+    box-shadow:0 6px 24px rgba(0,0,0,.35);
     transition:.3s;
-    box-shadow:0 4px 18px rgba(0,0,0,.35);
+    position:relative;
 }
 
 .movie-card:hover{
-    transform:translateY(-6px) scale(1.02);
+    transform:translateY(-8px) scale(1.02);
 }
 
-.movie-card img{
+.movie-link{
+    display:block;
+    position:relative;
+    text-decoration:none;
+    color:white;
+}
+
+.movie-poster{
     width:100%;
-    height:340px;
+    height:330px;
     object-fit:cover;
+    display:block;
+}
+
+.no-poster{
+    width:100%;
+    height:330px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#2a2a2a;
+    color:#bbb;
+    padding:10px;
+    text-align:center;
+}
+
+.movie-hover{
+    position:absolute;
+    inset:0;
+    background:linear-gradient(to top, rgba(0,0,0,.72), transparent 45%);
+    opacity:0;
+    transition:.3s;
+    display:flex;
+    align-items:flex-end;
+    justify-content:flex-start;
+    padding:16px;
+}
+
+.movie-card:hover .movie-hover{
+    opacity:1;
+}
+
+.play-pill{
+    background:#ff4d4d;
+    padding:8px 14px;
+    border-radius:999px;
+    font-size:13px;
+    font-weight:bold;
 }
 
 .movie-info{
-    padding:18px;
+    padding:16px 16px 18px;
 }
 
 .movie-info h3{
-    margin-bottom:10px;
+    margin:0 0 10px;
+    font-size:18px;
 }
 
-.movie-info p{
-    color:#ccc;
-    margin:6px 0;
+.movie-subinfo{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    color:#cfcfcf;
+    font-size:14px;
 }
 
-/* RESPONSIVE */
+.mini-banner{
+    background:linear-gradient(135deg, #1b1b1b, #111);
+    border:1px solid #2a2a2a;
+    border-radius:22px;
+    padding:24px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:20px;
+    box-shadow:0 6px 24px rgba(0,0,0,.3);
+}
 
-@media(max-width:768px){
+.mini-banner h3{
+    margin:0 0 8px;
+    font-size:24px;
+}
 
+.mini-banner p{
+    margin:0;
+    color:#bfbfbf;
+}
+
+.mini-btn{
+    text-decoration:none;
+    background:#ff4d4d;
+    color:white;
+    padding:14px 20px;
+    border-radius:12px;
+    font-weight:bold;
+    white-space:nowrap;
+    transition:.3s;
+}
+
+.mini-btn:hover{
+    background:#ff1f1f;
+    transform:translateY(-2px);
+}
+
+@media(max-width:900px){
     .hero-content{
-        padding:30px;
+        padding:0 24px;
     }
 
     .hero-content h1{
-        font-size:42px;
+        font-size:46px;
     }
 
-    .hero-content p{
+    .hero-text{
         font-size:16px;
     }
 
-}
+    .section-wrap{
+        padding:26px 18px 10px;
+    }
 
+    .section-head h2{
+        font-size:24px;
+    }
+
+    .mini-banner{
+        flex-direction:column;
+        align-items:flex-start;
+    }
+}
 </style>
 
 {% endblock %}

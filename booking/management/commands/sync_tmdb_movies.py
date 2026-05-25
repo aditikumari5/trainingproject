@@ -11,6 +11,19 @@ from django.core.management.base import BaseCommand
 from booking.models import Movie
 
 
+def get_budget_level(rating, vote_count):
+    rating = float(rating or 0)
+    vote_count = int(vote_count or 0)
+
+    score = (rating * 10) + min(vote_count / 100, 25)
+
+    if score >= 85:
+        return "high"
+    elif score >= 65:
+        return "medium"
+    return "low"
+
+
 class Command(BaseCommand):
     help = "Sync movies from TMDb"
 
@@ -22,7 +35,7 @@ class Command(BaseCommand):
             return
 
         session = requests.Session()
-        session.trust_env = False  # avoids proxy/env issues on Windows
+        session.trust_env = False
 
         retry = Retry(
             total=3,
@@ -111,7 +124,7 @@ class Command(BaseCommand):
                     "vote_count": vote_count,
                     "genre": genre_names,
                     "is_active": True,
-                    "budget_level": "medium",
+                    "budget_level": get_budget_level(rating, vote_count),
                 },
             )
 
@@ -119,5 +132,3 @@ class Command(BaseCommand):
             time.sleep(0.4)
 
         self.stdout.write(self.style.SUCCESS(f"Successfully synced {saved_count} movies from TMDb"))
-
-        

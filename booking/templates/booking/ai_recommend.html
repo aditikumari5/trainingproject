@@ -4,46 +4,140 @@
 
 <div class="ai-container">
 
-    <h1>Movie Suggestions Now 🍿</h1>
+    <h1>AI Movie Assistant 🤖</h1>
+    <p class="subtitle">Search by mood, genre, budget, or sort the results dynamically.</p>
 
-    <p class="subtitle">
-        Search by genre, mood, or movie type.
-    </p>
+    <form method="GET" class="filter-panel">
 
-    <form method="GET" class="search-box">
         <input
             type="text"
             name="q"
-            placeholder="Example: action, horror, emotional, comedy..."
+            placeholder="Try: action, emotional, funny, horror..."
             value="{{ query }}"
+            class="search-input"
         >
-        <button type="submit">Search</button>
+
+        <div class="filter-row">
+
+            <select name="budget" class="filter-select">
+                <option value="">All Budgets</option>
+                <option value="low" {% if budget == "low" %}selected{% endif %}>Low</option>
+                <option value="medium" {% if budget == "medium" %}selected{% endif %}>Medium</option>
+                <option value="high" {% if budget == "high" %}selected{% endif %}>High</option>
+            </select>
+
+            <select name="genre" class="filter-select">
+                <option value="">All Genres</option>
+                <option value="action" {% if genre_filter == "action" %}selected{% endif %}>Action</option>
+                <option value="comedy" {% if genre_filter == "comedy" %}selected{% endif %}>Comedy</option>
+                <option value="drama" {% if genre_filter == "drama" %}selected{% endif %}>Drama</option>
+                <option value="horror" {% if genre_filter == "horror" %}selected{% endif %}>Horror</option>
+                <option value="romance" {% if genre_filter == "romance" %}selected{% endif %}>Romance</option>
+                <option value="thriller" {% if genre_filter == "thriller" %}selected{% endif %}>Thriller</option>
+                <option value="sci-fi" {% if genre_filter == "sci-fi" %}selected{% endif %}>Sci-Fi</option>
+            </select>
+
+            <select name="min_rating" class="filter-select">
+                <option value="">Min Rating</option>
+                <option value="5" {% if min_rating == "5" %}selected{% endif %}>5+</option>
+                <option value="6" {% if min_rating == "6" %}selected{% endif %}>6+</option>
+                <option value="7" {% if min_rating == "7" %}selected{% endif %}>7+</option>
+                <option value="8" {% if min_rating == "8" %}selected{% endif %}>8+</option>
+            </select>
+
+            <select name="sort_by" class="filter-select">
+                <option value="">Sort By</option>
+                <option value="rating" {% if sort_by == "rating" %}selected{% endif %}>Rating</option>
+                <option value="votes" {% if sort_by == "votes" %}selected{% endif %}>Votes</option>
+                <option value="title" {% if sort_by == "title" %}selected{% endif %}>Title</option>
+            </select>
+
+        </div>
+
+        <button type="submit" class="search-btn">Apply Filters</button>
     </form>
 
     <div class="quick-tags">
         <a href="?q=action">Action</a>
+        <a href="?q=emotional">Emotional</a>
+        <a href="?q=funny">Funny</a>
         <a href="?q=horror">Horror</a>
-        <a href="?q=comedy">Comedy</a>
-        <a href="?q=romance">Romance</a>
-        <a href="?q=thriller">Thriller</a>
-        <a href="?q=sci-fi">Sci-Fi</a>
+        <a href="?q=romantic">Romantic</a>
+        <a href="?q=popular">Popular</a>
     </div>
 
-    {% if query %}
-        <h2 class="result-title">Results for "{{ query }}"</h2>
-    {% else %}
-        <h2 class="result-title">Top Suggestions</h2>
+    <div class="budget-section">
+        <h2>Choose Budget</h2>
+
+        <div class="budget-buttons">
+            <a href="?budget=low{% if query %}&q={{ query }}{% endif %}{% if genre_filter %}&genre={{ genre_filter }}{% endif %}{% if min_rating %}&min_rating={{ min_rating }}{% endif %}{% if sort_by %}&sort_by={{ sort_by }}{% endif %}"
+               class="{% if budget == 'low' %}active{% endif %}">
+                Low
+            </a>
+
+            <a href="?budget=medium{% if query %}&q={{ query }}{% endif %}{% if genre_filter %}&genre={{ genre_filter }}{% endif %}{% if min_rating %}&min_rating={{ min_rating }}{% endif %}{% if sort_by %}&sort_by={{ sort_by }}{% endif %}"
+               class="{% if budget == 'medium' %}active{% endif %}">
+                Medium
+            </a>
+
+            <a href="?budget=high{% if query %}&q={{ query }}{% endif %}{% if genre_filter %}&genre={{ genre_filter }}{% endif %}{% if min_rating %}&min_rating={{ min_rating }}{% endif %}{% if sort_by %}&sort_by={{ sort_by }}{% endif %}"
+               class="{% if budget == 'high' %}active{% endif %}">
+                High
+            </a>
+        </div>
+    </div>
+
+    {% if preferred_genres %}
+    <div class="watched-section">
+        <h2>Because You Watched 🎬</h2>
+        <div class="genre-pills">
+            {% for genre in preferred_genres %}
+                <span class="genre-pill">{{ genre }}</span>
+            {% endfor %}
+        </div>
+    </div>
     {% endif %}
 
-    <div class="movie-grid">
-        {% for movie in recommended %}
-        <div class="movie-card">
-            <a href="/movie/{{ movie.id }}/">
+    {% if trending_movies %}
+    <div class="trending-section">
+        <h2>🔥 Trending Now</h2>
+
+        <div class="trending-row">
+            {% for movie in trending_movies %}
+            <a href="/movie/{{ movie.id }}/" class="trend-card">
                 {% if movie.poster_path %}
                     <img
                         src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}"
                         alt="{{ movie.title }}"
                     >
+                {% else %}
+                    <div class="trend-no-poster">No Poster Available</div>
+                {% endif %}
+
+                <span>{{ movie.title }}</span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <h2 class="result-title">
+        {% if query %}
+            Results for "{{ query }}"
+        {% elif budget or genre_filter or min_rating or sort_by %}
+            Filtered Results
+        {% else %}
+            Top Suggestions
+        {% endif %}
+    </h2>
+
+    <div class="movie-grid">
+        {% for item in recommended %}
+        {% with movie=item.movie %}
+        <div class="movie-card">
+            <a href="/movie/{{ movie.id }}/">
+                {% if movie.poster_path %}
+                    <img src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}" alt="{{ movie.title }}">
                 {% else %}
                     <div class="no-poster">No Poster Available</div>
                 {% endif %}
@@ -53,8 +147,22 @@
                 <h3>{{ movie.title }}</h3>
                 <p>⭐ {{ movie.rating|floatformat:1 }}</p>
                 <p>{{ movie.genre|default:"Genre N/A" }}</p>
+                <p class="budget-label">Budget: {{ movie.budget_level|default:"medium" }}</p>
+
+                {% if item.score %}
+                    <p class="score-line">Score: {{ item.score }}</p>
+                {% endif %}
+
+                {% if item.reasons %}
+                    <div class="reasons">
+                        {% for reason in item.reasons %}
+                            <span class="reason-pill">{{ reason }}</span>
+                        {% endfor %}
+                    </div>
+                {% endif %}
             </div>
         </div>
+        {% endwith %}
         {% empty %}
             <p class="no-results">No matching movies found.</p>
         {% endfor %}
@@ -69,47 +177,57 @@ body{
     font-family:Arial,sans-serif;
     margin:0;
 }
-
 .ai-container{
     padding:40px 20px 60px;
     max-width:1200px;
     margin:0 auto;
 }
-
 .ai-container h1{
     text-align:center;
     font-size:48px;
     margin-bottom:10px;
 }
-
 .subtitle{
     text-align:center;
     color:#bbb;
-    margin-bottom:35px;
+    margin-bottom:30px;
 }
-
-.search-box{
-    display:flex;
-    justify-content:center;
-    gap:15px;
-    flex-wrap:wrap;
+.filter-panel{
+    background:#181818;
+    padding:20px;
+    border-radius:18px;
+    box-shadow:0 4px 18px rgba(0,0,0,.35);
     margin-bottom:25px;
 }
-
-.search-box input{
-    width:500px;
-    max-width:100%;
+.search-input{
+    width:100%;
     padding:16px;
     border:none;
     border-radius:12px;
-    background:#181818;
+    background:#111;
     color:white;
     font-size:16px;
     outline:none;
+    margin-bottom:15px;
 }
-
-.search-box button{
-    padding:16px 28px;
+.filter-row{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+    gap:12px;
+    margin-bottom:15px;
+}
+.filter-select{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    background:#111;
+    color:white;
+    outline:none;
+}
+.search-btn{
+    width:100%;
+    padding:14px;
     border:none;
     border-radius:12px;
     background:#ff4d4d;
@@ -117,15 +235,13 @@ body{
     font-weight:bold;
     cursor:pointer;
 }
-
 .quick-tags{
     display:flex;
     justify-content:center;
     flex-wrap:wrap;
     gap:12px;
-    margin-bottom:40px;
+    margin:25px 0 20px;
 }
-
 .quick-tags a{
     padding:10px 18px;
     background:#181818;
@@ -134,22 +250,111 @@ body{
     color:white;
     transition:.3s;
 }
-
 .quick-tags a:hover{
     background:#ff4d4d;
 }
-
-.result-title{
-    margin-bottom:25px;
+.budget-section{
+    text-align:center;
+    margin:20px 0 10px;
+}
+.budget-buttons{
+    display:flex;
+    justify-content:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-top:12px;
+}
+.budget-buttons a{
+    padding:10px 18px;
+    background:#181818;
+    border-radius:999px;
+    text-decoration:none;
+    color:white;
+    transition:.3s;
+}
+.budget-buttons a:hover,
+.budget-buttons a.active{
+    background:#ff4d4d;
+}
+.watched-section{
+    margin:30px 0;
     text-align:center;
 }
-
+.genre-pills{
+    display:flex;
+    justify-content:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-top:15px;
+}
+.genre-pill{
+    background:#ff4d4d;
+    padding:10px 18px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:bold;
+}
+.trending-section{
+    margin:40px 0;
+}
+.trending-section h2{
+    margin-bottom:20px;
+}
+.trending-row{
+    display:flex;
+    gap:18px;
+    overflow-x:auto;
+    padding-bottom:10px;
+}
+.trending-row::-webkit-scrollbar{
+    height:8px;
+}
+.trending-row::-webkit-scrollbar-thumb{
+    background:#ff4d4d;
+    border-radius:999px;
+}
+.trend-card{
+    min-width:180px;
+    text-decoration:none;
+    color:white;
+    transition:.3s;
+}
+.trend-card:hover{
+    transform:scale(1.05);
+}
+.trend-card img{
+    width:180px;
+    height:260px;
+    object-fit:cover;
+    border-radius:14px;
+    margin-bottom:10px;
+}
+.trend-no-poster{
+    width:180px;
+    height:260px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:#2a2a2a;
+    border-radius:14px;
+    margin-bottom:10px;
+    color:#bbb;
+    text-align:center;
+    padding:10px;
+}
+.trend-card span{
+    font-size:14px;
+    font-weight:bold;
+}
+.result-title{
+    margin:25px 0;
+    text-align:center;
+}
 .movie-grid{
     display:grid;
     grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
     gap:24px;
 }
-
 .movie-card{
     background:#181818;
     border-radius:18px;
@@ -157,18 +362,15 @@ body{
     transition:.3s;
     box-shadow:0 4px 18px rgba(0,0,0,.35);
 }
-
 .movie-card:hover{
     transform:translateY(-6px);
 }
-
 .movie-card img{
     width:100%;
     height:330px;
     object-fit:cover;
     display:block;
 }
-
 .no-poster{
     width:100%;
     height:330px;
@@ -180,20 +382,32 @@ body{
     text-align:center;
     padding:10px;
 }
-
 .movie-info{
     padding:18px;
 }
-
 .movie-info h3{
     margin-bottom:10px;
 }
-
 .movie-info p{
     color:#ccc;
     margin:6px 0;
 }
-
+.budget-label{
+    color:#ffcc66;
+}
+.score-line{
+    color:#8be28b;
+    font-weight:bold;
+}
+.reason-pill{
+    display:inline-block;
+    margin:6px 6px 0 0;
+    padding:6px 10px;
+    border-radius:999px;
+    background:#2a2a2a;
+    color:#ddd;
+    font-size:12px;
+}
 .no-results{
     color:#bbb;
     text-align:center;

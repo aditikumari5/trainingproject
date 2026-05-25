@@ -1,49 +1,29 @@
 from django.db import models
 from django.contrib.auth.models import User
-from django.utils import timezone
-
-
 
 
 class Movie(models.Model):
-    tmdb_id = models.IntegerField(unique=True, null=True, blank=True)
-    title = models.CharField(max_length=255, default="")
+    title = models.CharField(max_length=200)
     overview = models.TextField(blank=True, default="")
-    poster_path = models.CharField(max_length=500, blank=True, default="")
-    backdrop_path = models.CharField(max_length=500, blank=True, default="")
+    poster_path = models.CharField(max_length=300, blank=True, default="")
+    backdrop_path = models.CharField(max_length=300, blank=True, default="")
     release_date = models.DateField(null=True, blank=True)
-    duration = models.PositiveIntegerField(default=0)
+    duration = models.IntegerField(default=0)
     rating = models.FloatField(default=0)
     vote_count = models.IntegerField(default=0)
+    genre = models.CharField(max_length=255, blank=True, default="")
+    tmdb_id = models.IntegerField(null=True, blank=True, unique=True)
+    budget_level = models.CharField(max_length=20, default="medium")
     is_active = models.BooleanField(default=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    genre = models.CharField(max_length=200, blank=True, default="")
-    budget_level = models.CharField(max_length=20, blank=True, default="")
 
     def __str__(self):
         return self.title
 
 
-class Theater(models.Model):
-    name = models.CharField(max_length=100)
-    location = models.CharField(max_length=200)
-
-    def __str__(self):
-        return self.name
-
-
-class Screen(models.Model):
-    theater = models.ForeignKey(Theater, on_delete=models.CASCADE)
-    screen_number = models.IntegerField()
-
-    def __str__(self):
-        return f"Screen {self.screen_number}"
-
-
 class Show(models.Model):
-    movie_name = models.CharField(max_length=100)
-    show_time = models.TimeField()
-    created_at = models.DateTimeField(default=timezone.now)
+    movie_name = models.CharField(max_length=200)
+    show_time = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.movie_name} - {self.show_time}"
@@ -62,21 +42,15 @@ class Seat(models.Model):
     show = models.ForeignKey(Show, on_delete=models.CASCADE)
 
     def __str__(self):
-        return self.seat_number
+        return f"{self.seat_number} ({self.show.movie_name})"
+
 
 class Booking(models.Model):
-
-    user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        null=True,
-        blank=True
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
 
     movie_name = models.CharField(max_length=200)
     show_time = models.CharField(max_length=100)
     seats = models.CharField(max_length=200)
-
     amount = models.IntegerField(default=0)
 
     razorpay_order_id = models.CharField(max_length=200)
@@ -88,4 +62,17 @@ class Booking(models.Model):
     booked_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.movie_name
+        return f"{self.movie_name} - {self.seats}"
+
+
+class Wishlist(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("user", "movie")
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.movie.title}"

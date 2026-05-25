@@ -2,58 +2,167 @@
 
 {% block content %}
 
-<h1 style="text-align:center; margin-bottom:30px;">
-    Admin Dashboard 🏢
-</h1>
+<div class="admin-page">
 
-<div class="top-actions">
-    <a href="/admin-movies/" class="action-btn">Manage Movies</a>
-    <a href="/admin-shows/" class="action-btn">Manage Shows</a>
-    <a href="/admin-bookings/" class="action-btn">View Bookings</a>
-</div>
+    <div class="dashboard-hero">
 
-<div class="stats-grid">
-    <div class="stat-card">
-        <h2>{{ total_movies }}</h2>
-        <p>Total Movies</p>
+        <div>
+            <p class="hero-tag">Admin Control Panel</p>
+            <h1>ShowTime Dashboard</h1>
+            <p class="hero-text">
+                Monitor bookings, revenue, trending movies, occupancy, and platform analytics.
+            </p>
+        </div>
+
+        <a href="/admin-movies/" class="primary-btn">
+            🎬 Manage Movies
+        </a>
+
     </div>
 
-    <div class="stat-card">
-        <h2>{{ total_shows }}</h2>
-        <p>Total Shows</p>
-    </div>
+    <div class="stats-grid">
 
-    <div class="stat-card">
-        <h2>{{ total_bookings }}</h2>
-        <p>Total Bookings</p>
-    </div>
-
-    <div class="stat-card">
-        <h2>₹{{ total_earnings }}</h2>
-        <p>Total Earnings</p>
-    </div>
-</div>
-
-<div class="recent-box">
-    <h2>Recent Bookings</h2>
-
-    {% for booking in recent_bookings %}
-        <div class="booking-row">
+        <div class="stat-card">
+            <div class="stat-icon">🎟</div>
             <div>
-                <strong>{{ booking.movie_name }}</strong><br>
-                <span>{{ booking.show_time }}</span><br>
-                <span>{{ booking.booked_at|date:"d M Y, h:i A" }}</span>
-            </div>
-
-            <div>
-                Seats: {{ booking.seats }}<br>
-                Amount: ₹{{ booking.amount }}<br>
-                Method: {{ booking.payment_method }}
+                <span>Total Bookings</span>
+                <h2>{{ total_bookings }}</h2>
             </div>
         </div>
-    {% empty %}
-        <p>No bookings yet.</p>
-    {% endfor %}
+
+        <div class="stat-card">
+            <div class="stat-icon">💰</div>
+            <div>
+                <span>Total Revenue</span>
+                <h2>₹{{ total_revenue }}</h2>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">🔥</div>
+            <div>
+                <span>Trending Movies</span>
+                <h2>{{ trending_movies_count }}</h2>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">📈</div>
+            <div>
+                <span>Occupancy</span>
+                <h2>{{ occupancy_percentage }}%</h2>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="analytics-grid">
+
+        <div class="panel-card">
+
+            <div class="panel-head">
+                <h2>Top Booked Movies</h2>
+            </div>
+
+            {% for movie in top_movies %}
+            <div class="list-row">
+                <div>
+                    <strong>{{ movie.movie_name }}</strong>
+                </div>
+
+                <span>{{ movie.total }} bookings</span>
+            </div>
+            {% empty %}
+                <p class="empty-text">No booking data available.</p>
+            {% endfor %}
+
+        </div>
+
+        <div class="panel-card">
+
+            <div class="panel-head">
+                <h2>Peak Show Timings</h2>
+            </div>
+
+            {% for show in peak_shows %}
+            <div class="list-row">
+                <div>
+                    <strong>{{ show.show_time }}</strong>
+                </div>
+
+                <span>{{ show.total }} bookings</span>
+            </div>
+            {% empty %}
+                <p class="empty-text">No show timing data available.</p>
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+    <div class="analytics-grid">
+
+        <div class="panel-card">
+
+            <div class="panel-head">
+                <h2>Recent Bookings</h2>
+            </div>
+
+            {% for booking in recent_bookings %}
+            <div class="booking-row">
+
+                <div class="booking-left">
+                    <div class="ticket-icon">🎫</div>
+
+                    <div>
+                        <strong>{{ booking.movie_name }}</strong>
+                        <p>
+                            {{ booking.show_time }} • {{ booking.seats }}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="booking-right">
+                    ₹{{ booking.amount }}
+                </div>
+
+            </div>
+            {% empty %}
+                <p class="empty-text">No recent bookings.</p>
+            {% endfor %}
+
+        </div>
+
+        <div class="panel-card">
+
+            <div class="panel-head">
+                <h2>Quick Actions</h2>
+            </div>
+
+            <div class="action-grid">
+
+                <a href="/admin-movies/add/" class="action-btn">
+                    ➕ Add Movie
+                </a>
+
+                <a href="/admin-bookings/" class="action-btn">
+                    📜 View Bookings
+                </a>
+
+                <a href="/movies/" class="action-btn">
+                    🎬 Browse Site
+                </a>
+
+                <a href="/ai-recommend/" class="action-btn">
+                    🤖 AI Recommendations
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
 </div>
 
 <style>
@@ -61,94 +170,232 @@ body{
     background:#0f0f0f;
     color:white;
     font-family:Arial,sans-serif;
+    margin:0;
 }
 
-.top-actions{
+.admin-page{
+    max-width:1400px;
+    margin:0 auto;
+    padding:40px 24px 60px;
+}
+
+.dashboard-hero{
     display:flex;
-    justify-content:center;
-    gap:15px;
-    flex-wrap:wrap;
-    margin-bottom:25px;
+    justify-content:space-between;
+    align-items:flex-end;
+    gap:20px;
+    margin-bottom:28px;
+    padding:30px;
+    background:linear-gradient(135deg, #181818, #111);
+    border:1px solid #2a2a2a;
+    border-radius:28px;
+    box-shadow:0 6px 24px rgba(0,0,0,.35);
 }
 
-.action-btn{
+.hero-tag{
     display:inline-block;
-    padding:12px 22px;
     background:#ff4d4d;
     color:white;
-    text-decoration:none;
-    border-radius:10px;
+    padding:8px 14px;
+    border-radius:999px;
+    font-size:13px;
     font-weight:bold;
-    transition:0.3s;
+    margin-bottom:12px;
 }
 
-.action-btn:hover{
-    background:#ff1f1f;
+.dashboard-hero h1{
+    font-size:54px;
+    margin:0 0 10px;
+    line-height:1.05;
+}
+
+.hero-text{
+    color:#cfcfcf;
+    margin:0;
+    max-width:720px;
+    line-height:1.7;
+}
+
+.primary-btn{
+    text-decoration:none;
+    background:#ff4d4d;
+    color:white;
+    padding:15px 22px;
+    border-radius:12px;
+    font-weight:bold;
+    transition:.3s;
+    white-space:nowrap;
+}
+
+.primary-btn:hover{
     transform:translateY(-2px);
+    opacity:.95;
 }
 
 .stats-grid{
     display:grid;
-    grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
     gap:20px;
-    margin-bottom:30px;
+    margin-bottom:28px;
 }
 
 .stat-card{
     background:#181818;
-    padding:24px;
+    border:1px solid #2a2a2a;
+    border-radius:22px;
+    padding:22px;
+    display:flex;
+    align-items:center;
+    gap:18px;
+    box-shadow:0 6px 24px rgba(0,0,0,.35);
+}
+
+.stat-icon{
+    width:68px;
+    height:68px;
     border-radius:18px;
-    text-align:center;
-    box-shadow:0 4px 18px rgba(0,0,0,.35);
+    background:#ff4d4d;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:30px;
+    flex-shrink:0;
+}
+
+.stat-card span{
+    color:#b7b7b7;
+    font-size:14px;
 }
 
 .stat-card h2{
-    font-size:38px;
-    margin-bottom:8px;
-    color:#ff4d4d;
+    margin:8px 0 0;
+    font-size:34px;
 }
 
-.stat-card p{
-    color:#ccc;
-    font-size:16px;
+.analytics-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(340px,1fr));
+    gap:22px;
+    margin-bottom:24px;
 }
 
-.recent-box{
+.panel-card{
     background:#181818;
+    border:1px solid #2a2a2a;
+    border-radius:24px;
     padding:24px;
-    border-radius:18px;
-    box-shadow:0 4px 18px rgba(0,0,0,.35);
+    box-shadow:0 6px 24px rgba(0,0,0,.35);
 }
 
-.recent-box h2{
+.panel-head{
     margin-bottom:18px;
+}
+
+.panel-head h2{
+    margin:0;
+    font-size:28px;
+}
+
+.list-row{
+    display:flex;
+    justify-content:space-between;
+    gap:14px;
+    padding:14px 16px;
+    border-radius:14px;
+    background:#101010;
+    border:1px solid #2a2a2a;
+    margin-bottom:12px;
+}
+
+.list-row span{
+    color:#ffcc66;
+    white-space:nowrap;
 }
 
 .booking-row{
     display:flex;
     justify-content:space-between;
-    gap:20px;
-    padding:14px 0;
-    border-bottom:1px solid #2a2a2a;
+    gap:14px;
+    align-items:center;
+    padding:14px 16px;
+    border-radius:16px;
+    background:#101010;
+    border:1px solid #2a2a2a;
+    margin-bottom:14px;
 }
 
-.booking-row:last-child{
-    border-bottom:none;
+.booking-left{
+    display:flex;
+    gap:14px;
+    align-items:center;
 }
 
-.booking-row strong{
-    color:#fff;
+.ticket-icon{
+    width:52px;
+    height:52px;
+    border-radius:14px;
+    background:#ff4d4d;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:24px;
 }
 
-.booking-row span{
-    color:#aaa;
+.booking-left p{
+    margin:6px 0 0;
+    color:#bbb;
     font-size:14px;
 }
 
-@media(max-width:700px){
-    .booking-row{
+.booking-right{
+    font-weight:bold;
+    color:#8be28b;
+    white-space:nowrap;
+}
+
+.action-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+    gap:14px;
+}
+
+.action-btn{
+    text-decoration:none;
+    background:#101010;
+    border:1px solid #2a2a2a;
+    color:white;
+    padding:16px;
+    border-radius:16px;
+    text-align:center;
+    font-weight:bold;
+    transition:.3s;
+}
+
+.action-btn:hover{
+    background:#ff4d4d;
+    transform:translateY(-3px);
+}
+
+.empty-text{
+    color:#bbb;
+    margin:0;
+}
+
+@media(max-width:900px){
+
+    .dashboard-hero{
         flex-direction:column;
+        align-items:flex-start;
     }
+
+    .dashboard-hero h1{
+        font-size:38px;
+    }
+
+    .admin-page{
+        padding:24px 16px 50px;
+    }
+
 }
 </style>
 
