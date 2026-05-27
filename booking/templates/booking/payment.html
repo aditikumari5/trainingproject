@@ -1,71 +1,371 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 
-<div class="payment-page">
+<style>
+    *{
+        margin:0;
+        padding:0;
+        box-sizing:border-box;
+        font-family:Arial, Helvetica, sans-serif;
+    }
 
-    <div class="payment-card">
+    body{
+        background:#050505;
+        color:white;
+    }
 
-        <div class="payment-head">
-            <div>
-                <p class="hero-tag">Secure Checkout</p>
-                <h1>Complete Your Booking</h1>
-                <p class="hero-text">
-                    Confirm your seats and choose a payment method to finish the booking.
-                </p>
+    .payment-container{
+        width:90%;
+        max-width:1200px;
+        margin:40px auto;
+    }
+
+    .payment-title{
+        font-size:42px;
+        font-weight:bold;
+        margin-bottom:10px;
+    }
+
+    .payment-subtitle{
+        color:#aaa;
+        margin-bottom:40px;
+    }
+
+    .payment-grid{
+        display:grid;
+        grid-template-columns:1fr 400px;
+        gap:30px;
+    }
+
+    .payment-card{
+        background:#111;
+        border-radius:20px;
+        padding:30px;
+        border:1px solid rgba(255,255,255,0.08);
+        box-shadow:0 0 20px rgba(0,0,0,0.4);
+    }
+
+    .section-title{
+        font-size:24px;
+        font-weight:bold;
+        margin-bottom:25px;
+    }
+
+    .summary-row{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        padding:15px 0;
+        border-bottom:1px solid rgba(255,255,255,0.08);
+    }
+
+    .summary-label{
+        color:#aaa;
+    }
+
+    .summary-value{
+        font-weight:bold;
+    }
+
+    .final-box{
+        margin-top:30px;
+        background:linear-gradient(135deg,#ff4d4d,#b30000);
+        border-radius:18px;
+        padding:25px;
+    }
+
+    .final-text{
+        color:#eee;
+        font-size:15px;
+    }
+
+    .final-amount{
+        font-size:40px;
+        font-weight:bold;
+        margin-top:8px;
+    }
+
+    .timer-box{
+        margin-top:25px;
+        background:#181818;
+        border-radius:15px;
+        padding:18px;
+        border:1px solid rgba(255,255,255,0.08);
+    }
+
+    .timer-title{
+        color:#aaa;
+        margin-bottom:8px;
+    }
+
+    .timer{
+        color:#00ff99;
+        font-size:24px;
+        font-weight:bold;
+    }
+
+    .food-item{
+        display:flex;
+        justify-content:space-between;
+        margin-bottom:15px;
+        padding-bottom:15px;
+        border-bottom:1px solid rgba(255,255,255,0.08);
+    }
+
+    .food-name{
+        font-weight:bold;
+    }
+
+    .food-meta{
+        color:#aaa;
+        font-size:14px;
+        margin-top:4px;
+    }
+
+    .payment-buttons{
+        display:flex;
+        flex-direction:column;
+        gap:15px;
+        margin-top:25px;
+    }
+
+    .pay-btn{
+        width:100%;
+        padding:16px;
+        border:none;
+        border-radius:14px;
+        font-size:16px;
+        font-weight:bold;
+        cursor:pointer;
+        transition:0.2s;
+    }
+
+    .online-btn{
+        background:#ff4d4d;
+        color:white;
+    }
+
+    .online-btn:hover{
+        background:#ff2f2f;
+    }
+
+    .cash-btn{
+        background:#00c853;
+        color:black;
+    }
+
+    .cash-btn:hover{
+        background:#00b34a;
+    }
+
+    .back-btn{
+        background:#1c1c1c;
+        color:white;
+        border:1px solid rgba(255,255,255,0.08);
+    }
+
+    .back-btn:hover{
+        background:#262626;
+    }
+
+    .payment-note{
+        margin-top:25px;
+        color:#999;
+        font-size:14px;
+        line-height:1.6;
+    }
+
+    @media(max-width:900px){
+
+        .payment-grid{
+            grid-template-columns:1fr;
+        }
+
+    }
+</style>
+
+<div class="payment-container">
+
+    <div class="payment-title">
+        Complete Your Booking
+    </div>
+
+    <div class="payment-subtitle">
+        Review your ticket details and complete payment securely.
+    </div>
+
+    <div class="payment-grid">
+
+        <!-- LEFT -->
+        <div class="payment-card">
+
+            <div class="section-title">
+                Ticket Summary
             </div>
+
+            <div class="summary-row">
+                <div class="summary-label">Movie</div>
+                <div class="summary-value">{{ movie_name }}</div>
+            </div>
+
+            <div class="summary-row">
+                <div class="summary-label">Show Time</div>
+                <div class="summary-value">{{ show_time }}</div>
+            </div>
+
+            <div class="summary-row">
+                <div class="summary-label">Seats</div>
+                <div class="summary-value">{{ seats }}</div>
+            </div>
+
+            <div class="summary-row">
+                <div class="summary-label">Ticket Amount</div>
+                <div class="summary-value">₹{{ amount }}</div>
+            </div>
+
+            {% if food_cart %}
+
+                <div class="section-title" style="margin-top:35px;">
+                    Food & Combos
+                </div>
+
+                {% for item in food_cart %}
+
+                    <div class="food-item">
+
+                        <div>
+
+                            <div class="food-name">
+                                {{ item.food_item.name }}
+                            </div>
+
+                            <div class="food-meta">
+                                ₹{{ item.food_item.price }} × {{ item.quantity }}
+                            </div>
+
+                        </div>
+
+                        <div class="summary-value">
+                            ₹{{ item.total_price }}
+                        </div>
+
+                    </div>
+
+                {% endfor %}
+
+                <div class="summary-row">
+                    <div class="summary-label">Food Total</div>
+                    <div class="summary-value">₹{{ food_total }}</div>
+                </div>
+
+            {% endif %}
+
+            {% if offer_discount > 0 %}
+
+                <div class="summary-row">
+                    <div class="summary-label">Discount</div>
+                    <div class="summary-value" style="color:#00ff99;">
+                        - ₹{{ offer_discount }}
+                    </div>
+                </div>
+
+            {% endif %}
+
+            <div class="final-box">
+
+                <div class="final-text">
+                    Final Payable Amount
+                </div>
+
+                <div class="final-amount">
+                    ₹{{ grand_total }}
+                </div>
+
+            </div>
+
+            <div class="timer-box">
+
+                <div class="timer-title">
+                    Seat Lock Remaining
+                </div>
+
+                <div class="timer" id="countdown">
+                    Calculating...
+                </div>
+
+            </div>
+
         </div>
 
-        <div class="summary-grid">
+        <!-- RIGHT -->
+        <div class="payment-card">
 
-            <div class="summary-box">
-                <span>Movie</span>
-                <strong>{{ movie_name }}</strong>
+            <div class="section-title">
+                Payment Options
             </div>
 
-            <div class="summary-box">
-                <span>Show Time</span>
-                <strong>{{ show_time }}</strong>
+            <div class="summary-row">
+                <div class="summary-label">Gateway</div>
+                <div class="summary-value">Razorpay</div>
             </div>
 
-            <div class="summary-box">
-                <span>Seats</span>
-                <strong>{{ seats }}</strong>
+            <div class="summary-row">
+                <div class="summary-label">Methods</div>
+                <div class="summary-value">
+                    UPI / Cards / Netbanking
+                </div>
             </div>
 
-            <div class="summary-box">
-                <span>Total Amount</span>
-                <strong>₹{{ amount }}</strong>
-            </div>
+            <div class="payment-buttons">
 
-        </div>
-
-        <div class="timer-box">
-            <p>Seat lock expires in:</p>
-            <strong id="countdown">--:--</strong>
-        </div>
-
-        <div class="payment-options">
-
-            <div class="payment-method-card">
-                <h2>Pay Online</h2>
-                <p>Use Razorpay for instant confirmation.</p>
-
-                <button id="rzp-button" class="primary-btn" type="button">
-                    Pay ₹{{ amount }}
+                <button
+                    id="rzp-button"
+                    class="pay-btn online-btn"
+                >
+                    Pay ₹{{ grand_total }}
                 </button>
+
+                <form
+                    method="POST"
+                    action="{% url 'cash_payment_success' %}"
+                >
+
+                    {% csrf_token %}
+
+                    <button
+                        type="submit"
+                        class="pay-btn cash-btn"
+                    >
+                        Cash Payment
+                    </button>
+
+                </form>
+
+                <a
+                    href="{% url 'show_seats' %}?show_id={{ request.session.show_id }}"
+                    style="text-decoration:none;"
+                >
+
+                    <button
+                        class="pay-btn back-btn"
+                        type="button"
+                    >
+                        Back To Seats
+                    </button>
+
+                </a>
+
             </div>
 
-            <div class="payment-method-card">
-                <h2>Pay in Cash</h2>
-                <p>Confirm now and pay at the counter.</p>
+            <div class="payment-note">
 
-                <form method="POST" action="/payment/cash/">
-                    {% csrf_token %}
-                    <button type="submit" class="secondary-btn">
-                        Pay in Cash
-                    </button>
-                </form>
+                • Your seats are temporarily locked.<br>
+                • After successful payment, ticket PDF will be generated automatically.<br>
+                • QR ticket verification is enabled.<br>
+                • Razorpay test mode is currently active.
+
             </div>
 
         </div>
@@ -75,260 +375,120 @@
 </div>
 
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+
 <script>
-    const countdownEl = document.getElementById("countdown");
-    const expiresAt = "{{ lock_expires_at|default:'' }}";
 
-    function startCountdown() {
-        if (!expiresAt) return;
+    // -----------------------------
+    // COUNTDOWN
+    // -----------------------------
 
-        const target = new Date(expiresAt);
-        if (isNaN(target.getTime())) return;
+    const expiryText = "{{ lock_expires_at|escapejs }}";
+    const countdown = document.getElementById("countdown");
 
-        function updateCountdown() {
-            const now = new Date();
-            const diff = target - now;
+    function updateCountdown() {
 
-            if (diff <= 0) {
-                countdownEl.textContent = "Expired";
-                window.location.href = "/seats/";
-                return;
-            }
-
-            const totalSeconds = Math.floor(diff / 1000);
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-
-            countdownEl.textContent =
-                String(minutes).padStart(2, "0") + ":" + String(seconds).padStart(2, "0");
+        if (!expiryText || expiryText === "None") {
+            countdown.innerHTML = "Unavailable";
+            return;
         }
 
-        updateCountdown();
-        setInterval(updateCountdown, 1000);
+        const target = new Date(expiryText);
+
+        if (isNaN(target.getTime())) {
+            countdown.innerHTML = "Unavailable";
+            return;
+        }
+
+        const now = new Date();
+
+        let diff = Math.floor(
+            (target.getTime() - now.getTime()) / 1000
+        );
+
+        if (diff <= 0) {
+
+            countdown.innerHTML = "Expired";
+
+            setTimeout(() => {
+                window.location.href = "{% url 'show_seats' %}?show_id={{ request.session.show_id }}";
+            }, 2000);
+
+            return;
+        }
+
+        const mins = Math.floor(diff / 60);
+        const secs = diff % 60;
+
+        countdown.innerHTML =
+            mins + "m " +
+            secs.toString().padStart(2, "0") + "s";
     }
 
-    startCountdown();
+    updateCountdown();
 
-    const options = {
-        key: "{{ razorpay_key_id }}",
-        amount: "{{ amount }}" * 100,
-        currency: "INR",
-        name: "ShowTime",
-        description: "Movie Booking Payment",
-        order_id: "{{ order_id }}",
-        handler: function (response) {
-            const form = document.createElement("form");
-            form.method = "POST";
-            form.action = "/payment/success/";
+    setInterval(updateCountdown, 1000);
 
-            const fields = {
-                razorpay_payment_id: response.razorpay_payment_id,
-                razorpay_order_id: response.razorpay_order_id,
-                razorpay_signature: response.razorpay_signature,
-                csrfmiddlewaretoken: "{{ csrf_token }}"
-            };
+    // -----------------------------
+    // RAZORPAY
+    // -----------------------------
 
-            for (const key in fields) {
-                const input = document.createElement("input");
-                input.type = "hidden";
-                input.name = key;
-                input.value = fields[key];
-                form.appendChild(input);
+    document
+        .getElementById("rzp-button")
+        .onclick = function (e) {
+
+        const options = {
+
+            key: "{{ razorpay_key_id }}",
+
+            amount: "{{ razorpay_amount }}",
+
+            currency: "INR",
+
+            name: "ShowTime",
+
+            description: "{{ movie_name|escapejs }}",
+
+            image: "{% static 'images/logo.png' %}",
+
+            order_id: "{{ order_id }}",
+
+            callback_url:
+                "{{ request.scheme }}://{{ request.get_host }}{% url 'payment_success' %}",
+
+            redirect: true,
+
+            prefill: {
+
+                name: "{{ request.user.username|escapejs }}",
+
+                email: "{{ request.user.email|escapejs }}",
+
+            },
+
+            theme: {
+                color: "#ff4d4d"
+            },
+
+            modal: {
+
+                ondismiss: function () {
+
+                    console.log("Payment popup closed");
+
+                }
+
             }
 
-            document.body.appendChild(form);
-            form.submit();
-        },
-        theme: {
-            color: "#ff4d4d"
-        }
-    };
+        };
 
-    const rzp = new Razorpay(options);
+        const rzp = new Razorpay(options);
 
-    document.getElementById("rzp-button").onclick = function (e) {
-        e.preventDefault();
         rzp.open();
+
+        e.preventDefault();
+
     };
+
 </script>
-
-<style>
-body{
-    background:#0f0f0f;
-    color:white;
-    font-family:Arial,sans-serif;
-    margin:0;
-}
-
-.payment-page{
-    min-height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:40px 18px;
-}
-
-.payment-card{
-    width:100%;
-    max-width:1100px;
-    background:linear-gradient(135deg, #181818, #111);
-    border:1px solid #2a2a2a;
-    border-radius:28px;
-    box-shadow:0 10px 30px rgba(0,0,0,.45);
-    padding:34px;
-}
-
-.payment-head{
-    margin-bottom:24px;
-}
-
-.hero-tag{
-    display:inline-block;
-    background:#ff4d4d;
-    color:white;
-    padding:8px 14px;
-    border-radius:999px;
-    font-size:13px;
-    font-weight:bold;
-    margin-bottom:12px;
-}
-
-.payment-head h1{
-    font-size:48px;
-    margin:0 0 10px;
-    line-height:1.05;
-}
-
-.hero-text{
-    color:#cfcfcf;
-    margin:0;
-    line-height:1.7;
-    max-width:720px;
-}
-
-.summary-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
-    gap:14px;
-    margin-bottom:20px;
-}
-
-.summary-box{
-    background:#101010;
-    border:1px solid #2a2a2a;
-    border-radius:18px;
-    padding:16px;
-}
-
-.summary-box span{
-    display:block;
-    color:#a7a7a7;
-    font-size:13px;
-    margin-bottom:8px;
-}
-
-.summary-box strong{
-    font-size:17px;
-    word-break:break-word;
-}
-
-.timer-box{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:14px;
-    background:#101010;
-    border:1px solid #2a2a2a;
-    border-radius:18px;
-    padding:16px 18px;
-    margin-bottom:26px;
-}
-
-.timer-box p{
-    margin:0;
-    color:#cfcfcf;
-}
-
-.timer-box strong{
-    font-size:26px;
-    color:#ffcc66;
-}
-
-.payment-options{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-    gap:18px;
-}
-
-.payment-method-card{
-    background:#101010;
-    border:1px solid #2a2a2a;
-    border-radius:22px;
-    padding:24px;
-    box-shadow:0 6px 24px rgba(0,0,0,.28);
-}
-
-.payment-method-card h2{
-    margin:0 0 10px;
-    font-size:26px;
-}
-
-.payment-method-card p{
-    color:#c9c9c9;
-    margin:0 0 20px;
-    line-height:1.7;
-}
-
-.primary-btn,
-.secondary-btn{
-    width:100%;
-    text-decoration:none;
-    padding:15px 22px;
-    border-radius:12px;
-    font-weight:bold;
-    transition:.3s;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    border:none;
-    cursor:pointer;
-    font-size:16px;
-}
-
-.primary-btn{
-    background:#ff4d4d;
-    color:white;
-}
-
-.secondary-btn{
-    background:#2a2a2a;
-    color:white;
-}
-
-.primary-btn:hover,
-.secondary-btn:hover{
-    transform:translateY(-2px);
-    opacity:.95;
-}
-
-@media(max-width:700px){
-    .payment-card{
-        padding:24px 18px;
-    }
-
-    .payment-head h1{
-        font-size:34px;
-    }
-
-    .timer-box{
-        flex-direction:column;
-        align-items:flex-start;
-    }
-
-    .timer-box strong{
-        font-size:22px;
-    }
-}
-</style>
 
 {% endblock %}

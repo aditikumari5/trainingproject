@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<style>
+    * {
+        box-sizing: border-box;
+        font-family: Arial, Helvetica, sans-serif;
+    }
+
+    body {
+        background: #050505;
+        color: white;
+    }
+
+    .verify-wrap {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 30px 16px;
+    }
+
+    .verify-card {
+        width: 100%;
+        max-width: 760px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 24px;
+        padding: 28px;
+        box-shadow: 0 16px 50px rgba(0, 0, 0, 0.35);
+        backdrop-filter: blur(10px);
+    }
+
+    .title {
+        font-size: 34px;
+        font-weight: 900;
+        margin-bottom: 8px;
+        color: #fff;
+    }
+
+    .subtitle {
+        color: #aaa;
+        margin-bottom: 24px;
+        line-height: 1.5;
+    }
+
+    .msg {
+        padding: 14px 16px;
+        border-radius: 14px;
+        margin-bottom: 14px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+
+    .item {
+        padding: 14px 16px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .label {
+        display: block;
+        font-size: 13px;
+        color: #999;
+        margin-bottom: 6px;
+    }
+
+    .value {
+        font-size: 16px;
+        font-weight: 700;
+        color: #fff;
+        word-break: break-word;
+    }
+
+    .status-valid {
+        color: #00ff99;
+    }
+
+    .status-used {
+        color: #ff4d4d;
+    }
+
+    .buttons {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+        flex-wrap: wrap;
+    }
+
+    .btn {
+        border: none;
+        text-decoration: none;
+        padding: 14px 18px;
+        border-radius: 12px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: 0.2s ease;
+        display: inline-block;
+    }
+
+    .btn:hover {
+        transform: translateY(-1px);
+    }
+
+    .btn-success {
+        background: #00ff99;
+        color: #000;
+    }
+
+    .btn-dark {
+        background: #1a1a1a;
+        color: #fff;
+        border: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .btn-danger {
+        background: #ff4d4d;
+        color: #fff;
+    }
+
+    @media (max-width: 640px) {
+        .grid {
+            grid-template-columns: 1fr;
+        }
+
+        .title {
+            font-size: 26px;
+        }
+    }
+</style>
+
+<div class="verify-wrap">
+    <div class="verify-card">
+        <div class="title">Ticket Verification</div>
+        <div class="subtitle">
+            Scan result loaded successfully. Check the details below before marking the ticket as used.
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div class="msg">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        <div class="grid">
+            <div class="item">
+                <span class="label">Booking ID</span>
+                <div class="value">#{{ booking.id }}</div>
+            </div>
+
+            <div class="item">
+                <span class="label">Movie</span>
+                <div class="value">{{ booking.movie_name }}</div>
+            </div>
+
+            <div class="item">
+                <span class="label">Show Time</span>
+                <div class="value">{{ booking.show_time }}</div>
+            </div>
+
+            <div class="item">
+                <span class="label">Seats</span>
+                <div class="value">{{ booking.seats }}</div>
+            </div>
+
+            <div class="item">
+                <span class="label">Amount</span>
+                <div class="value">₹{{ booking.amount }}</div>
+            </div>
+
+            <div class="item">
+                <span class="label">Payment Method</span>
+                <div class="value">{{ booking.payment_method }}</div>
+            </div>
+
+            <div class="item">
+                <span class="label">Payment Status</span>
+                <div class="value">
+                    {% if booking.payment_status %}
+                        <span class="status-valid">PAID</span>
+                    {% else %}
+                        <span class="status-used">PENDING</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="item">
+                <span class="label">Ticket Used</span>
+                <div class="value">
+                    {% if booking.is_ticket_used %}
+                        <span class="status-used">YES</span>
+                    {% else %}
+                        <span class="status-valid">NO</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="buttons">
+            {% if not booking.is_ticket_used %}
+                <form method="post">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">
+                        Mark Ticket as Used
+                    </button>
+                </form>
+            {% endif %}
+
+            <a href="{% url 'admin_dashboard' %}" class="btn btn-dark">
+                Back to Admin
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

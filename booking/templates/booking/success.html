@@ -1,51 +1,59 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block content %}
 
 <div class="ticket">
 
-    <h1>🎟 Booking Confirmed</h1>
+<h1>🎟 Booking Confirmed</h1>
 
-    <h3>Movie: {{ booking.movie_name }}</h3>
+<h3>Movie: {{ booking.movie_name }}</h3>
 
-    <p>Seats: {{ booking.seats }}</p>
+<p>
+Seats:
+{{ booking.seats }}
+</p>
 
-    <p>Show Time: {{ booking.show_time }}</p>
+<p>
+Show Time:
+{{ booking.show_time }}
+</p>
 
-    <p>Amount: ₹{{ booking.amount }}</p>
+<p>
+Amount:
+₹{{ booking.amount }}
+</p>
 
-    <p>Status: Confirmed</p>
+<p>Status: Confirmed</p>
 
-    <p>Order ID: {{ booking.razorpay_order_id }}</p>
-    <p>Payment ID: {{ booking.razorpay_payment_id }}</p>
-
-    <a href="/my-bookings/">
-        View My Bookings
-    </a>
+<a href="/my-bookings/">
+View My Bookings
+</a>
 
 </div>
 
 <style>
+
 .ticket{
-    width:500px;
-    margin:60px auto;
-    background:white;
-    color:black;
-    padding:35px;
-    border-radius:20px;
-    text-align:center;
-    box-shadow:0 0 20px rgba(0,0,0,.2);
+width:500px;
+margin:60px auto;
+background:white;
+color:black;
+padding:35px;
+border-radius:20px;
+text-align:center;
+box-shadow:0 0 20px rgba(0,0,0,.2);
 }
 
 a{
-    display:inline-block;
-    margin-top:20px;
-    padding:12px 25px;
-    background:#ff4d4d;
-    color:white;
-    text-decoration:none;
-    border-radius:8px;
+display:inline-block;
+margin-top:20px;
+padding:12px 25px;
+background:#ff4d4d;
+color:white;
+text-decoration:none;
+border-radius:8px;
 }
+
 </style>
 
 {% endblock %}

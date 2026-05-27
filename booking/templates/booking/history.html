@@ -1,321 +1,306 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html lang="en">
 
-{% block content %}
+<head>
 
-<div class="history-page">
+    <meta charset="UTF-8">
 
-    <div class="page-head">
-        <div>
-            <p class="hero-tag">Your Bookings</p>
-            <h1>My Bookings</h1>
-            <p class="hero-text">
-                View your confirmed tickets, download PDFs, or cancel a booking.
-            </p>
-        </div>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        <a href="/movies/" class="primary-btn">
-            🎬 Book More Movies
+    <title>My Bookings | ShowTime</title>
+
+    <style>
+
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family:Arial, Helvetica, sans-serif;
+        }
+
+        body{
+            background:#0f0f0f;
+            color:white;
+            min-height:100vh;
+            padding:40px 20px;
+        }
+
+        .container{
+            max-width:1100px;
+            margin:auto;
+        }
+
+        h1{
+            text-align:center;
+            margin-bottom:40px;
+            color:#00ff99;
+            font-size:40px;
+        }
+
+        .booking-grid{
+
+            display:grid;
+
+            grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+
+            gap:25px;
+        }
+
+        .booking-card{
+
+            background:rgba(255,255,255,0.07);
+
+            border:1px solid rgba(255,255,255,0.1);
+
+            border-radius:20px;
+
+            padding:25px;
+
+            backdrop-filter: blur(12px);
+
+            transition:0.3s ease;
+        }
+
+        .booking-card:hover{
+            transform:translateY(-5px);
+            box-shadow:0 0 20px rgba(0,255,153,0.2);
+        }
+
+        .movie-title{
+            font-size:24px;
+            margin-bottom:20px;
+            color:#00ff99;
+        }
+
+        .detail-row{
+            display:flex;
+            justify-content:space-between;
+            margin-bottom:14px;
+            padding-bottom:10px;
+            border-bottom:1px solid rgba(255,255,255,0.08);
+        }
+
+        .label{
+            color:#aaaaaa;
+        }
+
+        .value{
+            font-weight:bold;
+        }
+
+        .status-paid{
+            color:#00ff99;
+        }
+
+        .status-pending{
+            color:orange;
+        }
+
+        .buttons{
+
+            margin-top:25px;
+
+            display:flex;
+
+            flex-wrap:wrap;
+
+            gap:12px;
+        }
+
+        .btn{
+
+            text-decoration:none;
+
+            padding:12px 18px;
+
+            border-radius:10px;
+
+            font-size:14px;
+
+            font-weight:bold;
+
+            transition:0.3s ease;
+
+            display:inline-block;
+        }
+
+        .download-btn{
+            background:#00ff99;
+            color:black;
+        }
+
+        .download-btn:hover{
+            box-shadow:0 0 15px #00ff99;
+        }
+
+        .cancel-btn{
+            background:#ff4d4d;
+            color:white;
+        }
+
+        .cancel-btn:hover{
+            background:#ff1f1f;
+        }
+
+        .home-btn{
+
+            display:inline-block;
+
+            margin-top:40px;
+
+            text-decoration:none;
+
+            background:#1f1f1f;
+
+            color:white;
+
+            padding:14px 24px;
+
+            border-radius:12px;
+
+            border:1px solid #333;
+
+            transition:0.3s ease;
+        }
+
+        .home-btn:hover{
+            background:#2a2a2a;
+        }
+
+        .empty-box{
+
+            text-align:center;
+
+            padding:80px 20px;
+
+            background:rgba(255,255,255,0.05);
+
+            border-radius:20px;
+        }
+
+        .empty-box h2{
+            margin-bottom:15px;
+            color:#bbbbbb;
+        }
+
+        .empty-box p{
+            color:#888;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <h1>🎟 My Bookings</h1>
+
+        {% if bookings %}
+
+            <div class="booking-grid">
+
+                {% for booking in bookings %}
+
+                    <div class="booking-card">
+
+                        <h2 class="movie-title">
+                            {{ booking.movie_name }}
+                        </h2>
+
+                        <div class="detail-row">
+                            <span class="label">Show Time</span>
+                            <span class="value">{{ booking.show_time }}</span>
+                        </div>
+
+                        <div class="detail-row">
+                            <span class="label">Seats</span>
+                            <span class="value">{{ booking.seats }}</span>
+                        </div>
+
+                        <div class="detail-row">
+                            <span class="label">Amount</span>
+                            <span class="value">₹{{ booking.amount }}</span>
+                        </div>
+
+                        <div class="detail-row">
+                            <span class="label">Booking ID</span>
+                            <span class="value">#{{ booking.id }}</span>
+                        </div>
+
+                        <div class="detail-row">
+                            <span class="label">Booked At</span>
+                            <span class="value">
+                                {{ booking.booked_at }}
+                            </span>
+                        </div>
+
+                        <div class="detail-row">
+                            <span class="label">Payment</span>
+
+                            <span class="value">
+
+                                {% if booking.payment_status %}
+                                    <span class="status-paid">
+                                        Paid ✅
+                                    </span>
+                                {% else %}
+                                    <span class="status-pending">
+                                        Pending ⏳
+                                    </span>
+                                {% endif %}
+
+                            </span>
+
+                        </div>
+
+                        <div class="buttons">
+
+                            <a href="{% url 'download_ticket_pdf' booking.id %}"
+                               class="btn download-btn">
+
+                                🎟 Download Ticket
+
+                            </a>
+
+                            <a href="{% url 'cancel_booking' booking.id %}"
+                               class="btn cancel-btn">
+
+                                ❌ Cancel
+
+                            </a>
+
+                        </div>
+
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% else %}
+
+            <div class="empty-box">
+
+                <h2>No bookings yet</h2>
+
+                <p>
+                    Book your first movie ticket now 🍿
+                </p>
+
+            </div>
+
+        {% endif %}
+
+        <a href="{% url 'home' %}" class="home-btn">
+
+            ⬅ Back To Home
+
         </a>
+
     </div>
 
-    {% if messages %}
-        <div class="messages">
-            {% for message in messages %}
-                <div class="message-box">{{ message }}</div>
-            {% endfor %}
-        </div>
-    {% endif %}
+</body>
 
-    <div class="booking-grid">
-        {% for booking in bookings %}
-        <div class="booking-card">
-
-            <div class="booking-top">
-                <div class="movie-icon">🎟</div>
-                <div>
-                    <h2>{{ booking.movie_name }}</h2>
-                    <p class="booking-id">Booking ID: #{{ booking.id }}</p>
-                </div>
-            </div>
-
-            <div class="booking-details">
-                <div class="detail-row">
-                    <span>Show Time</span>
-                    <strong>{{ booking.show_time }}</strong>
-                </div>
-
-                <div class="detail-row">
-                    <span>Seats</span>
-                    <strong>{{ booking.seats }}</strong>
-                </div>
-
-                <div class="detail-row">
-                    <span>Amount</span>
-                    <strong>₹{{ booking.amount }}</strong>
-                </div>
-
-                <div class="detail-row">
-                    <span>Payment</span>
-                    <strong>{{ booking.payment_method }}</strong>
-                </div>
-
-                <div class="detail-row">
-                    <span>Booked On</span>
-                    <strong>{{ booking.booked_at|date:"d M Y, h:i A" }}</strong>
-                </div>
-            </div>
-
-            <div class="action-row">
-                <a href="/ticket/{{ booking.id }}/" class="primary-btn">
-                    🎫 Download Ticket
-                </a>
-
-                <form
-                    method="POST"
-                    action="/booking/cancel/{{ booking.id }}/"
-                    onsubmit="return confirm('Cancel this booking?');"
-                    class="cancel-form"
-                >
-                    {% csrf_token %}
-                    <button type="submit" class="secondary-btn danger">
-                        Cancel Booking
-                    </button>
-                </form>
-            </div>
-
-        </div>
-        {% empty %}
-        <div class="empty-box">
-            <h2>No bookings yet</h2>
-            <p>Your booked tickets will appear here.</p>
-            <a href="/movies/" class="primary-btn">Browse Movies</a>
-        </div>
-        {% endfor %}
-    </div>
-
-</div>
-
-<style>
-body{
-    background:#0f0f0f;
-    color:white;
-    font-family:Arial,sans-serif;
-    margin:0;
-}
-
-.history-page{
-    max-width:1300px;
-    margin:0 auto;
-    padding:40px 24px 60px;
-}
-
-.page-head{
-    display:flex;
-    justify-content:space-between;
-    align-items:flex-end;
-    gap:20px;
-    margin-bottom:28px;
-    padding:28px;
-    background:linear-gradient(135deg, #181818, #111);
-    border:1px solid #2a2a2a;
-    border-radius:24px;
-    box-shadow:0 6px 24px rgba(0,0,0,.35);
-}
-
-.hero-tag{
-    display:inline-block;
-    background:#ff4d4d;
-    color:white;
-    padding:8px 14px;
-    border-radius:999px;
-    font-size:13px;
-    font-weight:bold;
-    margin-bottom:12px;
-}
-
-.page-head h1{
-    font-size:52px;
-    margin:0 0 10px;
-    line-height:1.05;
-}
-
-.hero-text{
-    color:#cfcfcf;
-    margin:0;
-    max-width:700px;
-    line-height:1.7;
-}
-
-.primary-btn,
-.secondary-btn{
-    text-decoration:none;
-    padding:14px 22px;
-    border-radius:12px;
-    font-weight:bold;
-    transition:.3s;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    border:none;
-    cursor:pointer;
-}
-
-.primary-btn{
-    background:#ff4d4d;
-    color:white;
-}
-
-.secondary-btn{
-    background:#2a2a2a;
-    color:white;
-}
-
-.primary-btn:hover,
-.secondary-btn:hover{
-    transform:translateY(-2px);
-    opacity:.95;
-}
-
-.messages{
-    margin-bottom:20px;
-}
-
-.message-box{
-    background:#1f6f3c;
-    color:#d9ffe8;
-    padding:14px 18px;
-    border-radius:14px;
-    font-weight:bold;
-    margin-bottom:12px;
-}
-
-.booking-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
-    gap:22px;
-}
-
-.booking-card{
-    background:#181818;
-    border:1px solid #2a2a2a;
-    border-radius:22px;
-    padding:22px;
-    box-shadow:0 6px 24px rgba(0,0,0,.35);
-    transition:.3s;
-}
-
-.booking-card:hover{
-    transform:translateY(-6px);
-}
-
-.booking-top{
-    display:flex;
-    gap:14px;
-    align-items:center;
-    margin-bottom:18px;
-}
-
-.movie-icon{
-    width:56px;
-    height:56px;
-    border-radius:16px;
-    background:#ff4d4d;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:28px;
-    flex-shrink:0;
-}
-
-.booking-top h2{
-    margin:0 0 6px;
-    font-size:22px;
-}
-
-.booking-id{
-    margin:0;
-    color:#ffcc66;
-    font-size:14px;
-}
-
-.booking-details{
-    display:grid;
-    gap:12px;
-}
-
-.detail-row{
-    display:flex;
-    justify-content:space-between;
-    gap:16px;
-    padding:12px 14px;
-    border-radius:14px;
-    background:#101010;
-    border:1px solid #2a2a2a;
-}
-
-.detail-row span{
-    color:#a7a7a7;
-}
-
-.detail-row strong{
-    color:white;
-    text-align:right;
-}
-
-.action-row{
-    display:flex;
-    gap:12px;
-    flex-wrap:wrap;
-    margin-top:20px;
-}
-
-.cancel-form{
-    margin:0;
-}
-
-.secondary-btn.danger{
-    background:#c62828;
-    color:white;
-}
-
-.secondary-btn.danger:hover{
-    background:#a82020;
-}
-
-.empty-box{
-    grid-column:1 / -1;
-    text-align:center;
-    background:#181818;
-    border:1px solid #2a2a2a;
-    border-radius:24px;
-    padding:42px 24px;
-    box-shadow:0 6px 24px rgba(0,0,0,.35);
-}
-
-.empty-box h2{
-    margin:0 0 10px;
-    font-size:30px;
-}
-
-.empty-box p{
-    color:#bbb;
-    margin:0 0 22px;
-}
-
-@media(max-width:900px){
-    .page-head{
-        flex-direction:column;
-        align-items:flex-start;
-    }
-
-    .page-head h1{
-        font-size:36px;
-    }
-
-    .history-page{
-        padding:24px 16px 50px;
-    }
-}
-</style>
-
-{% endblock %}
+</html>

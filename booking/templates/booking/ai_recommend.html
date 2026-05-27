@@ -1,4 +1,4 @@
-{% extends 'booking/base.html' %}
+{% extends "base.html" %}
 
 {% block content %}
 
@@ -215,7 +215,7 @@
 
                 <div class="card-actions">
                     <a href="/movie/{{ movie.id }}/" class="watch-btn">
-                        Watch Now
+                        Book Now
                     </a>
 
                     {% if user.is_authenticated %}

@@ -1,461 +1,612 @@
-{% extends 'booking/base.html' %}
+{% extends "base.html" %}
+
 {% block content %}
 
 <div class="detail-page">
 
-    <!-- BACKDROP -->
-    <div class="backdrop-wrap">
+    <!-- HERO SECTION -->
+
+    <section class="detail-hero">
 
         {% if movie.backdrop_path %}
-            <img
-                src="https://image.tmdb.org/t/p/w1280{{ movie.backdrop_path }}"
-                alt="{{ movie.title }}"
-                class="backdrop-img"
-            >
+
+        <img
+            class="hero-bg"
+            src="https://image.tmdb.org/t/p/original{{ movie.backdrop_path }}"
+            alt="{{ movie.title }}"
+        >
+
+        {% elif movie.poster_path %}
+
+        <img
+            class="hero-bg"
+            src="https://image.tmdb.org/t/p/original{{ movie.poster_path }}"
+            alt="{{ movie.title }}"
+        >
+
         {% endif %}
 
-        <div class="backdrop-overlay"></div>
+        <div class="hero-overlay"></div>
 
-    </div>
+        <div class="hero-content">
 
-    <!-- MAIN CONTENT -->
-    <div class="detail-shell">
+            <!-- POSTER -->
 
-        <!-- POSTER -->
-        <div class="poster-card">
+            <div class="poster-container">
 
-            {% if movie.poster_path %}
+                {% if movie.poster_path %}
+
                 <img
+                    class="movie-poster"
                     src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}"
                     alt="{{ movie.title }}"
-                    class="poster-img"
                 >
-            {% else %}
-                <div class="no-poster">
-                    No Poster Available
-                </div>
-            {% endif %}
 
-        </div>
+                {% else %}
 
-        <!-- INFO -->
-        <div class="info-card">
-
-            <p class="movie-badge">
-                Featured Movie
-            </p>
-
-            <h1>
-                {{ movie.title }}
-            </h1>
-
-            <div class="meta-row">
-
-                <span>
-                    ⭐
-                    {% if movie.rating and movie.rating > 0 %}
-                        {{ movie.rating|floatformat:1 }}
-                    {% else %}
-                        N/A
-                    {% endif %}
-                </span>
-
-                <span>
-                    {{ movie.genre|default:"Genre N/A" }}
-                </span>
-
-                <span>
-                    {{ movie.release_date|default:"N/A" }}
-                </span>
-
-            </div>
-
-            <p class="overview">
-                {{ movie.overview|default:"No description available." }}
-            </p>
-
-            <!-- EXTRA INFO -->
-            <div class="details-grid">
-
-                <div class="detail-pill">
-                    <span>Duration</span>
-
-                    <strong>
-                        {% if movie.duration and movie.duration > 0 %}
-                            {{ movie.duration }} min
-                        {% else %}
-                            N/A
-                        {% endif %}
-                    </strong>
+                <div class="poster-placeholder">
+                    No Poster
                 </div>
 
-                <div class="detail-pill">
-                    <span>Votes</span>
-
-                    <strong>
-                        {{ movie.vote_count|default:"0" }}
-                    </strong>
-                </div>
-
-                <div class="detail-pill">
-                    <span>Budget</span>
-
-                    <strong>
-                        {{ movie.budget_level|default:"medium"|title }}
-                    </strong>
-                </div>
-
-            </div>
-
-            <!-- ACTION BUTTONS -->
-            <div class="action-row">
-
-                <a
-                    href="/shows/?movie_id={{ movie.id }}"
-                    class="primary-btn"
-                >
-                    🎟 Book Now
-                </a>
-
-                <!-- WISHLIST -->
-                <form
-                    method="POST"
-                    action="/wishlist/add/{{ movie.id }}/"
-                    class="wishlist-form"
-                >
-                    {% csrf_token %}
-
-                    <button
-                        type="submit"
-                        class="secondary-btn"
-                    >
-                        ❤️ Add to Wishlist
-                    </button>
-                </form>
-
-                <!-- TRAILER -->
-                {% if trailer_url %}
-                    <a
-                        href="{{ trailer_url }}"
-                        target="_blank"
-                        class="secondary-btn"
-                    >
-                        ▶ Watch Trailer
-                    </a>
                 {% endif %}
 
             </div>
 
-        </div>
+            <!-- INFO -->
 
-    </div>
+            <div class="movie-info">
 
-    <!-- TRAILER SECTION -->
-    <div class="extra-section">
+                <span class="featured-tag">
+                    🔥 Featured Movie
+                </span>
 
-        <div class="section-head">
-            <h2>
-                Trailer
-            </h2>
-        </div>
+                <h1>
+                    {{ movie.title }}
+                </h1>
 
-        <div class="trailer-card">
+                <div class="movie-meta">
 
-            {% if trailer_url %}
+                    <span>
+                        ⭐ {{ movie.rating|floatformat:1 }}
+                    </span>
 
-                <p class="trailer-text">
-                    Watch the official trailer on YouTube.
+                    <span>
+                        🎬 {{ movie.genre|default:"N/A" }}
+                    </span>
+
+                    <span>
+                        📅 {{ movie.release_date|default:"N/A" }}
+                    </span>
+
+                    <span>
+                        ⏱ {{ movie.duration|default:"N/A" }} min
+                    </span>
+
+                </div>
+
+                <p class="overview">
+
+                    {{ movie.overview|default:"No overview available." }}
+
                 </p>
 
-                <a
-                    href="{{ trailer_url }}"
-                    target="_blank"
-                    class="trailer-btn"
-                >
-                    ▶ Watch Trailer
-                </a>
+                <!-- ACTIONS -->
 
-            {% else %}
+                <div class="action-buttons">
 
-                <p class="trailer-text">
-                    Trailer not available right now.
-                </p>
+                    {% if trailer_url %}
 
-            {% endif %}
+                    <a
+                        href="{{ trailer_url }}"
+                        target="_blank"
+                        class="main-btn watch-btn"
+                    >
+                        ▶ Watch Trailer
+                    </a>
+
+                    {% endif %}
+
+                    <a
+                        href="/shows/?movie_id={{ movie.id }}"
+                        class="main-btn book-btn"
+                    >
+                        🎟 Book Tickets
+                    </a>
+
+                    <!-- WISHLIST -->
+
+                    {% if user.is_authenticated %}
+
+                        {% if movie.id in wishlist_movie_ids %}
+
+                        <form
+                            action="{% url 'remove_from_wishlist' movie.id %}"
+                            method="POST"
+                        >
+
+                            {% csrf_token %}
+
+                            <button
+                                type="submit"
+                                class="wishlist-btn active-heart"
+                            >
+                                ❤️ Added
+                            </button>
+
+                        </form>
+
+                        {% else %}
+
+                        <form
+                            action="{% url 'add_to_wishlist' movie.id %}"
+                            method="POST"
+                        >
+
+                            {% csrf_token %}
+
+                            <button
+                                type="submit"
+                                class="wishlist-btn"
+                            >
+                                🤍 Wishlist
+                            </button>
+
+                        </form>
+
+                        {% endif %}
+
+                    {% endif %}
+
+                </div>
+
+            </div>
 
         </div>
 
-    </div>
+    </section>
+
+    <!-- MOVIE DETAILS -->
+
+    <section class="details-section">
+
+        <div class="details-grid">
+
+            <!-- DETAILS CARD -->
+
+            <div class="detail-card">
+
+                <h2>
+                    🎬 Movie Details
+                </h2>
+
+                <div class="detail-row">
+
+                    <span class="label">
+                        Title
+                    </span>
+
+                    <span class="value">
+                        {{ movie.title }}
+                    </span>
+
+                </div>
+
+                <div class="detail-row">
+
+                    <span class="label">
+                        Genre
+                    </span>
+
+                    <span class="value">
+                        {{ movie.genre|default:"N/A" }}
+                    </span>
+
+                </div>
+
+                <div class="detail-row">
+
+                    <span class="label">
+                        Rating
+                    </span>
+
+                    <span class="value">
+                        ⭐ {{ movie.rating|floatformat:1 }}
+                    </span>
+
+                </div>
+
+                <div class="detail-row">
+
+                    <span class="label">
+                        Release Date
+                    </span>
+
+                    <span class="value">
+                        {{ movie.release_date|default:"N/A" }}
+                    </span>
+
+                </div>
+
+                <div class="detail-row">
+
+                    <span class="label">
+                        Duration
+                    </span>
+
+                    <span class="value">
+                        {{ movie.duration|default:"N/A" }} min
+                    </span>
+
+                </div>
+
+            </div>
+
+            <!-- STORY CARD -->
+
+            <div class="detail-card">
+
+                <h2>
+                    📖 Storyline
+                </h2>
+
+                <p class="story-text">
+
+                    {{ movie.overview|default:"Storyline unavailable." }}
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- TRAILER -->
+
+    {% if movie.trailer_url %}
+
+    <section class="trailer-section">
+
+        <h2>
+            🎥 Official Trailer
+        </h2>
+
+        <div class="trailer-wrapper">
+
+            <iframe
+                src="{{ movie.trailer_url }}"
+                frameborder="0"
+                allowfullscreen
+            ></iframe>
+
+        </div>
+
+    </section>
+
+    {% endif %}
 
 </div>
 
 <style>
 
-body{
-    background:#0f0f0f;
-    color:white;
-    font-family:Arial,sans-serif;
-    margin:0;
-}
-
 /* PAGE */
 
 .detail-page{
+    background:#0b0b0b;
+    color:white;
     min-height:100vh;
-    padding-bottom:50px;
 }
 
-/* BACKDROP */
+/* HERO */
 
-.backdrop-wrap{
+.detail-hero{
     position:relative;
-    height:430px;
+    min-height:95vh;
     overflow:hidden;
 }
 
-.backdrop-img{
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    display:block;
-    filter:brightness(.55);
-}
-
-.backdrop-overlay{
+.hero-bg{
     position:absolute;
     inset:0;
-    background:linear-gradient(
-        to top,
-        rgba(15,15,15,1) 0%,
-        rgba(15,15,15,.65) 45%,
-        rgba(15,15,15,.12) 100%
-    );
+
+    width:100%;
+    height:100%;
+
+    object-fit:cover;
 }
 
-/* MAIN SHELL */
+.hero-overlay{
+    position:absolute;
+    inset:0;
 
-.detail-shell{
-    max-width:1300px;
-    margin:-160px auto 0;
-    padding:0 24px;
-    display:grid;
-    grid-template-columns:300px 1fr;
-    gap:30px;
+    background:
+        linear-gradient(
+            to right,
+            rgba(0,0,0,.94) 18%,
+            rgba(0,0,0,.65) 50%,
+            rgba(0,0,0,.92) 100%
+        ),
+
+        linear-gradient(
+            to top,
+            #0b0b0b 0%,
+            transparent 45%
+        );
+}
+
+.hero-content{
     position:relative;
-    z-index:2;
+    z-index:5;
+
+    display:flex;
+    align-items:center;
+    gap:60px;
+
+    padding:
+        130px 7%
+        80px;
 }
 
 /* POSTER */
 
-.poster-card{
-    background:#181818;
+.poster-container{
+    flex-shrink:0;
+}
+
+.movie-poster{
+    width:340px;
     border-radius:24px;
-    overflow:hidden;
-    box-shadow:0 8px 28px rgba(0,0,0,.45);
+
+    box-shadow:
+        0 20px 60px rgba(0,0,0,.7);
+
+    transition:.4s;
 }
 
-.poster-img{
-    width:100%;
-    display:block;
-    aspect-ratio:2/3;
-    object-fit:cover;
+.movie-poster:hover{
+    transform:scale(1.03);
 }
 
-.no-poster{
-    width:100%;
-    aspect-ratio:2/3;
+.poster-placeholder{
+    width:340px;
+    height:510px;
+
+    border-radius:24px;
+
+    background:#1d1d1d;
+
     display:flex;
     align-items:center;
     justify-content:center;
-    background:#2a2a2a;
-    color:#bbb;
-    text-align:center;
-    padding:16px;
+
+    color:#999;
 }
 
 /* INFO */
 
-.info-card{
-    background:#181818;
-    border-radius:24px;
-    padding:32px;
-    box-shadow:0 8px 28px rgba(0,0,0,.45);
+.movie-info{
+    max-width:720px;
 }
 
-.movie-badge{
+.featured-tag{
     display:inline-block;
+
     background:#ff4d4d;
-    color:white;
-    padding:8px 14px;
+
+    padding:10px 20px;
+
     border-radius:999px;
-    font-size:13px;
-    font-weight:bold;
-    margin-bottom:14px;
-}
 
-.info-card h1{
-    font-size:56px;
-    line-height:1.05;
-    margin:0 0 18px;
-}
+    font-weight:700;
 
-.meta-row{
-    display:flex;
-    gap:14px;
-    flex-wrap:wrap;
-    color:#d0d0d0;
     margin-bottom:24px;
-    font-size:15px;
 }
 
-.meta-row span{
-    background:#101010;
-    border:1px solid #2a2a2a;
-    padding:8px 12px;
-    border-radius:999px;
+.movie-info h1{
+    font-size:76px;
+    line-height:1.05;
+    margin-bottom:26px;
 }
 
-.overview{
-    color:#d9d9d9;
-    line-height:1.9;
-    font-size:17px;
-    margin:0 0 28px;
-    max-width:900px;
-}
-
-/* EXTRA DETAILS */
-
-.details-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(170px,1fr));
+.movie-meta{
+    display:flex;
+    flex-wrap:wrap;
     gap:14px;
+
     margin-bottom:30px;
 }
 
-.detail-pill{
-    background:#101010;
-    border:1px solid #2a2a2a;
-    border-radius:16px;
-    padding:16px;
+.movie-meta span{
+    background:rgba(255,255,255,.1);
+
+    padding:10px 16px;
+
+    border-radius:999px;
+
+    backdrop-filter:blur(8px);
 }
 
-.detail-pill span{
-    display:block;
-    color:#aaa;
-    font-size:13px;
-    margin-bottom:8px;
-}
-
-.detail-pill strong{
+.overview{
     font-size:18px;
+    line-height:1.9;
+    color:#d5d5d5;
+
+    margin-bottom:38px;
 }
 
 /* ACTIONS */
 
-.action-row{
+.action-buttons{
     display:flex;
-    gap:14px;
     flex-wrap:wrap;
-    align-items:center;
+    gap:18px;
 }
 
-.primary-btn,
-.secondary-btn,
-.trailer-btn{
-    text-decoration:none;
-    padding:14px 22px;
-    border-radius:12px;
-    font-weight:bold;
+.main-btn{
+    padding:16px 28px;
+
+    border-radius:14px;
+
+    font-weight:700;
+
     transition:.3s;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    border:none;
-    cursor:pointer;
 }
 
-.primary-btn{
+.watch-btn{
     background:#ff4d4d;
     color:white;
 }
 
-.secondary-btn{
-    background:#2a2a2a;
+.book-btn{
+    background:#1d1d1d;
     color:white;
 }
 
-.trailer-btn{
-    background:#ff0000;
+.main-btn:hover{
+    transform:translateY(-4px);
+}
+
+.wishlist-btn{
+    border:none;
+
+    background:#232323;
+
     color:white;
+
+    padding:16px 24px;
+
+    border-radius:14px;
+
+    cursor:pointer;
+
+    font-size:15px;
+
+    transition:.3s;
 }
 
-.primary-btn:hover,
-.secondary-btn:hover,
-.trailer-btn:hover{
-    transform:translateY(-2px);
-    opacity:.95;
+.active-heart{
+    background:#ff4d4d !important;
 }
 
-.wishlist-form{
-    display:inline-block;
+/* DETAILS */
+
+.details-section{
+    padding:70px 7%;
+}
+
+.details-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:30px;
+}
+
+.detail-card{
+    background:#151515;
+
+    padding:32px;
+
+    border-radius:24px;
+
+    border:1px solid rgba(255,255,255,.05);
+}
+
+.detail-card h2{
+    margin-bottom:28px;
+    font-size:30px;
+}
+
+.detail-row{
+    display:flex;
+    justify-content:space-between;
+
+    padding:18px 0;
+
+    border-bottom:
+        1px solid rgba(255,255,255,.06);
+}
+
+.label{
+    color:#a7a7a7;
+}
+
+.value{
+    font-weight:700;
+}
+
+.story-text{
+    line-height:2;
+    color:#d2d2d2;
 }
 
 /* TRAILER */
 
-.extra-section{
-    max-width:1300px;
-    margin:32px auto 0;
-    padding:0 24px;
+.trailer-section{
+    padding:
+        20px 7%
+        90px;
 }
 
-.section-head h2{
-    font-size:32px;
-    margin:0 0 18px;
+.trailer-section h2{
+    font-size:34px;
+    margin-bottom:26px;
 }
 
-.trailer-card{
-    background:#181818;
+.trailer-wrapper{
     border-radius:24px;
-    padding:28px;
-    box-shadow:0 8px 28px rgba(0,0,0,.45);
+    overflow:hidden;
+
+    box-shadow:
+        0 20px 60px rgba(0,0,0,.7);
 }
 
-.trailer-text{
-    color:#ddd;
-    margin:0 0 18px;
-    font-size:16px;
+.trailer-wrapper iframe{
+    width:100%;
+    height:680px;
 }
 
-/* MOBILE */
+/* RESPONSIVE */
 
-@media(max-width:900px){
+@media(max-width:1100px){
 
-    .detail-shell{
-        grid-template-columns:1fr;
-        margin-top:-120px;
-    }
-
-    .poster-card{
-        max-width:320px;
-    }
-
-    .info-card h1{
-        font-size:38px;
-    }
-
-    .backdrop-wrap{
-        height:360px;
-    }
-
-    .action-row{
+    .hero-content{
         flex-direction:column;
-        align-items:stretch;
+        text-align:center;
     }
 
-    .primary-btn,
-    .secondary-btn,
-    .trailer-btn{
-        width:100%;
+    .movie-info h1{
+        font-size:58px;
+    }
+
+    .movie-meta{
+        justify-content:center;
+    }
+
+    .action-buttons{
+        justify-content:center;
+    }
+
+    .details-grid{
+        grid-template-columns:1fr;
+    }
+
+}
+
+@media(max-width:700px){
+
+    .movie-poster{
+        width:260px;
+    }
+
+    .movie-info h1{
+        font-size:40px;
+    }
+
+    .overview{
+        font-size:16px;
+    }
+
+    .trailer-wrapper iframe{
+        height:260px;
     }
 
 }

@@ -1,221 +1,235 @@
-{% extends 'base.html' %}
+<!DOCTYPE html>
+<html lang="en">
 
-{% block content %}
+<head>
 
-<div class="thanks-page">
+    <meta charset="UTF-8">
 
-    <div class="thanks-card">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-        <div class="success-badge">✓</div>
+    <title>Booking Success | ShowTime</title>
 
-        <p class="status-pill">Booking Confirmed</p>
+    <style>
 
-        <h1>Thanks for booking!</h1>
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family:Arial, Helvetica, sans-serif;
+        }
+
+        body{
+            background:#0f0f0f;
+            color:white;
+            min-height:100vh;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            padding:30px;
+        }
+
+        .ticket-card{
+
+            width:100%;
+            max-width:600px;
+
+            background:rgba(255,255,255,0.08);
+
+            border:1px solid rgba(255,255,255,0.1);
+
+            border-radius:20px;
+
+            padding:35px;
+
+            backdrop-filter: blur(15px);
+
+            box-shadow:0 0 25px rgba(0,0,0,0.5);
+
+            text-align:center;
+        }
+
+        .success-icon{
+            font-size:70px;
+            margin-bottom:20px;
+        }
+
+        h1{
+            color:#00ff99;
+            margin-bottom:10px;
+        }
+
+        .subtitle{
+            color:#bbbbbb;
+            margin-bottom:30px;
+        }
+
+        .details{
+
+            text-align:left;
+
+            margin-top:20px;
+
+            background:rgba(255,255,255,0.05);
+
+            padding:20px;
+
+            border-radius:15px;
+        }
+
+        .detail-row{
+            display:flex;
+            justify-content:space-between;
+            margin-bottom:15px;
+            border-bottom:1px solid rgba(255,255,255,0.08);
+            padding-bottom:10px;
+        }
+
+        .label{
+            color:#aaaaaa;
+        }
+
+        .value{
+            font-weight:bold;
+        }
+
+        .buttons{
+
+            margin-top:35px;
+
+            display:flex;
+
+            gap:15px;
+
+            flex-wrap:wrap;
+
+            justify-content:center;
+        }
+
+        .btn{
+
+            text-decoration:none;
+
+            padding:14px 24px;
+
+            border-radius:12px;
+
+            font-weight:bold;
+
+            transition:0.3s ease;
+
+            display:inline-block;
+        }
+
+        .download-btn{
+            background:#00ff99;
+            color:black;
+        }
+
+        .download-btn:hover{
+            transform:translateY(-3px);
+            box-shadow:0 0 15px #00ff99;
+        }
+
+        .home-btn{
+            background:#1f1f1f;
+            color:white;
+            border:1px solid #333;
+        }
+
+        .home-btn:hover{
+            background:#2a2a2a;
+        }
+
+        .qr-note{
+            margin-top:25px;
+            color:#888;
+            font-size:14px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="ticket-card">
+
+        <div class="success-icon">
+            🎉
+        </div>
+
+        <h1>Booking Successful!</h1>
 
         <p class="subtitle">
-            Your movie ticket has been booked successfully.
+            Your movie ticket has been confirmed.
         </p>
 
-        <div class="booking-grid">
+        <div class="details">
 
-            <div class="info-box">
-                <span>Booking ID</span>
-                <strong>#{{ booking.id }}</strong>
+            <div class="detail-row">
+                <span class="label">Movie</span>
+                <span class="value">{{ booking.movie_name }}</span>
             </div>
 
-            <div class="info-box">
-                <span>Movie</span>
-                <strong>{{ booking.movie_name }}</strong>
+            <div class="detail-row">
+                <span class="label">Show Time</span>
+                <span class="value">{{ booking.show_time }}</span>
             </div>
 
-            <div class="info-box">
-                <span>Show Time</span>
-                <strong>{{ booking.show_time }}</strong>
+            <div class="detail-row">
+                <span class="label">Seats</span>
+                <span class="value">{{ booking.seats }}</span>
             </div>
 
-            <div class="info-box">
-                <span>Seats</span>
-                <strong>{{ booking.seats }}</strong>
+            <div class="detail-row">
+                <span class="label">Amount Paid</span>
+                <span class="value">₹{{ booking.amount }}</span>
             </div>
 
-            <div class="info-box">
-                <span>Payment Method</span>
-                <strong>{{ booking.payment_method }}</strong>
+            <div class="detail-row">
+                <span class="label">Payment Status</span>
+                <span class="value">
+
+                    {% if booking.payment_status %}
+                        Paid ✅
+                    {% else %}
+                        Pending ⏳
+                    {% endif %}
+
+                </span>
             </div>
 
-            <div class="info-box">
-                <span>Total Paid</span>
-                <strong>₹{{ booking.amount }}</strong>
-            </div>
-
-            <div class="info-box">
-                <span>Booking Date</span>
-                <strong>{{ booking.booked_at|date:"d M Y, h:i A" }}</strong>
+            <div class="detail-row">
+                <span class="label">Booking ID</span>
+                <span class="value">#{{ booking.id }}</span>
             </div>
 
         </div>
 
-        <div class="action-row">
-            <a href="/ticket/{{ booking.id }}/" class="primary-btn">
-                🎫 Download Ticket
+        <div class="buttons">
+
+            <a href="{% url 'download_ticket_pdf' booking.id %}"
+               class="btn download-btn">
+
+                🎟 Download Ticket PDF
+
             </a>
 
-            <a href="/movies/" class="secondary-btn">
-                🎬 Book More
+            <a href="{% url 'home' %}"
+               class="btn home-btn">
+
+                ⬅ Back To Home
+
             </a>
 
-            <a href="/my-bookings/" class="secondary-btn">
-                📜 My Bookings
-            </a>
         </div>
+
+        <p class="qr-note">
+            Your ticket contains a QR verification code.
+        </p>
 
     </div>
 
-</div>
+</body>
 
-<style>
-body{
-    background:#0f0f0f;
-    color:white;
-    font-family:Arial,sans-serif;
-    margin:0;
-}
-
-.thanks-page{
-    min-height:100vh;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding:40px 18px;
-}
-
-.thanks-card{
-    width:100%;
-    max-width:820px;
-    background:linear-gradient(135deg, #181818, #111);
-    border:1px solid #2a2a2a;
-    border-radius:28px;
-    box-shadow:0 10px 30px rgba(0,0,0,.45);
-    padding:34px;
-    text-align:center;
-}
-
-.success-badge{
-    width:92px;
-    height:92px;
-    border-radius:50%;
-    background:#ff4d4d;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    font-size:44px;
-    font-weight:bold;
-    margin:0 auto 14px;
-    box-shadow:0 0 30px rgba(255,77,77,.35);
-}
-
-.status-pill{
-    display:inline-block;
-    background:#1f6f3c;
-    color:#d9ffe8;
-    padding:8px 14px;
-    border-radius:999px;
-    font-size:13px;
-    font-weight:bold;
-    margin-bottom:14px;
-}
-
-.thanks-card h1{
-    font-size:48px;
-    margin:0 0 10px;
-    line-height:1.05;
-}
-
-.subtitle{
-    color:#cfcfcf;
-    margin:0 auto 26px;
-    max-width:580px;
-    line-height:1.8;
-    font-size:17px;
-}
-
-.booking-grid{
-    display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
-    gap:14px;
-    margin-top:18px;
-    text-align:left;
-}
-
-.info-box{
-    background:#101010;
-    border:1px solid #2a2a2a;
-    border-radius:18px;
-    padding:16px;
-}
-
-.info-box span{
-    display:block;
-    color:#a7a7a7;
-    font-size:13px;
-    margin-bottom:8px;
-}
-
-.info-box strong{
-    font-size:17px;
-    color:white;
-    word-break:break-word;
-}
-
-.action-row{
-    display:flex;
-    gap:14px;
-    justify-content:center;
-    flex-wrap:wrap;
-    margin-top:28px;
-}
-
-.primary-btn,
-.secondary-btn{
-    text-decoration:none;
-    padding:14px 22px;
-    border-radius:12px;
-    font-weight:bold;
-    transition:.3s;
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-}
-
-.primary-btn{
-    background:#ff4d4d;
-    color:white;
-}
-
-.secondary-btn{
-    background:#2a2a2a;
-    color:white;
-}
-
-.primary-btn:hover,
-.secondary-btn:hover{
-    transform:translateY(-2px);
-    opacity:.95;
-}
-
-@media(max-width:600px){
-    .thanks-card{
-        padding:24px 18px;
-    }
-
-    .thanks-card h1{
-        font-size:34px;
-    }
-
-    .subtitle{
-        font-size:15px;
-    }
-}
-</style>
-
-{% endblock %}
+</html>

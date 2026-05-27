@@ -1,138 +1,67 @@
-{% extends 'booking/base.html' %}
+{% extends "base.html" %}
 
 {% block content %}
 
 <div class="home-container">
 
-    <!-- HERO CAROUSEL -->
+    <!-- HERO SECTION -->
 
-<section class="hero-carousel">
-
-    {% for movie in trending_movies|slice:":5" %}
-
-    <div class="hero-slide {% if forloop.first %}active-slide{% endif %}">
-
-        {% if movie.backdrop_path %}
-
-        <img
-            src="https://image.tmdb.org/t/p/original{{ movie.backdrop_path }}"
-            class="hero-bg"
-            alt="{{ movie.title }}"
-        >
-
-        {% endif %}
+    <section class="hero-section">
 
         <div class="hero-overlay"></div>
 
         <div class="hero-content">
 
             <span class="hero-tag">
-                🔥 Trending Now
+                🔥 Trending Entertainment Platform
             </span>
 
             <h1>
-                {{ movie.title }}
+                Unlimited Movies,
+                Food Combos &
+                AI Experience 🎬
             </h1>
 
             <p>
-                {{ movie.overview|truncatewords:28 }}
+                Discover trending movies, smart recommendations,
+                voice search, premium food combos and
+                Netflix-style booking experience.
             </p>
-
-            <div class="hero-meta">
-
-                <span>
-                    ⭐ {{ movie.rating|floatformat:1 }}
-                </span>
-
-                <span>
-                    {{ movie.genre }}
-                </span>
-
-            </div>
 
             <div class="hero-buttons">
 
                 <a
-                    href="/movie/{{ movie.id }}/"
-                    class="hero-watch-btn"
+                    href="/movies/"
+                    class="hero-btn primary-btn"
                 >
-                    ▶ Watch Now
+                    Browse Movies
                 </a>
 
-                {% if user.is_authenticated %}
-
-                    {% if movie.id in wishlist_movie_ids %}
-
-                    <form
-                        action="{% url 'remove_from_wishlist' movie.id %}"
-                        method="POST"
-                    >
-
-                        {% csrf_token %}
-
-                        <button
-                            type="submit"
-                            class="hero-wishlist active-heart"
-                        >
-                            ❤️
-                        </button>
-
-                    </form>
-
-                    {% else %}
-
-                    <form
-                        action="{% url 'add_to_wishlist' movie.id %}"
-                        method="POST"
-                    >
-
-                        {% csrf_token %}
-
-                        <button
-                            type="submit"
-                            class="hero-wishlist"
-                        >
-                            🤍
-                        </button>
-
-                    </form>
-
-                    {% endif %}
-
-                {% endif %}
+                <a
+                    href="/food-offers/"
+                    class="hero-btn secondary-btn"
+                >
+                    🍔 Food Offers
+                </a>
 
             </div>
 
         </div>
 
-    </div>
-
-    {% endfor %}
-
-    <!-- DOTS -->
-
-    <div class="carousel-dots">
-
-        {% for movie in trending_movies|slice:":5" %}
-
-        <span
-            class="dot {% if forloop.first %}active-dot{% endif %}"
-        ></span>
-
-        {% endfor %}
-
-    </div>
-
-</section>
-           
+    </section>
 
     <!-- TRENDING MOVIES -->
+
     {% if trending_movies %}
 
     <section class="section-block">
 
         <div class="section-header">
-            <h2>🔥 Trending Now</h2>
+
+            <h2>
+                🔥 Trending Movies
+            </h2>
+
         </div>
 
         <div class="movie-row">
@@ -143,7 +72,9 @@
 
                 <a href="/movie/{{ movie.id }}/">
 
-                    <div class="media-container">
+                    <div class="poster-wrapper">
+
+                        {% if movie.poster_path %}
 
                         <img
                             class="poster-image"
@@ -151,17 +82,33 @@
                             alt="{{ movie.title }}"
                         >
 
-                        {% if movie.trailer_url %}
+                        {% else %}
 
-                        <iframe
-                            class="trailer-preview"
-                            src="{{ movie.trailer_url }}"
-                            frameborder="0"
-                            allow="autoplay"
-                            allowfullscreen
-                        ></iframe>
+                        <div class="no-poster">
+                            No Poster
+                        </div>
 
                         {% endif %}
+
+                        <div class="hover-overlay">
+
+                            <div class="hover-content">
+
+                                <h3>
+                                    {{ movie.title }}
+                                </h3>
+
+                                <p>
+                                    ⭐ {{ movie.rating|floatformat:1 }}
+                                </p>
+
+                                <span>
+                                    {{ movie.genre|default:"Movie" }}
+                                </span>
+
+                            </div>
+
+                        </div>
 
                     </div>
 
@@ -169,34 +116,59 @@
 
                 <div class="movie-card-info">
 
-                    <h3>{{ movie.title }}</h3>
+                    <h3>
+                        {{ movie.title }}
+                    </h3>
 
-                    <p>⭐ {{ movie.rating|floatformat:1 }}</p>
+                    <p>
+                        ⭐ {{ movie.rating|floatformat:1 }}
+                    </p>
 
                     <div class="card-actions">
 
-                        <a href="/movie/{{ movie.id }}/" class="watch-btn">
-                            Watch Now
+                        <a
+                            href="/movie/{{ movie.id }}/"
+                            class="watch-btn"
+                        >
+                            Watch
                         </a>
 
                         {% if user.is_authenticated %}
 
                             {% if movie.id in wishlist_movie_ids %}
 
-                            <form action="{% url 'remove_from_wishlist' movie.id %}" method="POST">
+                            <form
+                                action="{% url 'remove_from_wishlist' movie.id %}"
+                                method="POST"
+                            >
+
                                 {% csrf_token %}
-                                <button type="submit" class="wishlist-btn active-heart">
+
+                                <button
+                                    type="submit"
+                                    class="wishlist-btn active-heart"
+                                >
                                     ❤️
                                 </button>
+
                             </form>
 
                             {% else %}
 
-                            <form action="{% url 'add_to_wishlist' movie.id %}" method="POST">
+                            <form
+                                action="{% url 'add_to_wishlist' movie.id %}"
+                                method="POST"
+                            >
+
                                 {% csrf_token %}
-                                <button type="submit" class="wishlist-btn">
+
+                                <button
+                                    type="submit"
+                                    class="wishlist-btn"
+                                >
                                     🤍
                                 </button>
+
                             </form>
 
                             {% endif %}
@@ -217,167 +189,176 @@
 
     {% endif %}
 
-    <!-- CONTINUE WATCHING -->
-    {% if continue_watching %}
+    <!-- FOOD SECTION -->
 
     <section class="section-block">
 
         <div class="section-header">
-            <h2>▶ Continue Watching</h2>
+
+            <h2>
+                🍿 Food & Combo Offers
+            </h2>
+
         </div>
 
-        <div class="continue-row">
+        <div class="food-grid">
 
-            {% for item in continue_watching %}
+            <!-- FOOD CARD -->
 
-            <a href="/movie/{{ item.movie.id }}/" class="continue-card">
+            <div class="food-card">
 
                 <img
-                    src="https://image.tmdb.org/t/p/w500{{ item.movie.poster_path }}"
-                    alt="{{ item.movie.title }}"
+                    src="https://images.unsplash.com/photo-1578849278619-e73505e9610f?q=80&w=1200&auto=format&fit=crop"
+                    alt="Popcorn Combo"
                 >
 
-                <div class="continue-info">
+                <div class="food-info">
 
-                    <h3>{{ item.movie.title }}</h3>
+                    <h3>
+                        Popcorn Combo
+                    </h3>
 
-                    <div class="progress-bar">
-                        <div
-                            class="progress-fill"
-                            style="width:{% if item.watched_seconds %}{{ item.watched_seconds }}{% else %}25{% endif %}%;"
-                        ></div>
-                    </div>
+                    <p>
+                        Large popcorn + 2 cold drinks
+                    </p>
 
-                </div>
+                    <div class="price-row">
 
-            </a>
+                        <span class="old-price">
+                            ₹599
+                        </span>
 
-            {% endfor %}
-
-        </div>
-
-    </section>
-
-    {% endif %}
-
-
-
-    <!-- BECAUSE YOU WATCHED -->
-    {% for section in because_sections %}
-
-    <section class="section-block">
-
-        <div class="section-header">
-            <h2>{{ section.title }}</h2>
-        </div>
-
-        <div class="movie-row">
-
-            {% for movie in section.movies %}
-
-            <div class="movie-card">
-
-                <a href="/movie/{{ movie.id }}/">
-
-                    <div class="media-container">
-
-                        <img
-                            class="poster-image"
-                            src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}"
-                            alt="{{ movie.title }}"
-                        >
-
-                        {% if movie.trailer_url %}
-
-                        <iframe
-                            class="trailer-preview"
-                            src="{{ movie.trailer_url }}"
-                            frameborder="0"
-                            allow="autoplay"
-                            allowfullscreen
-                        ></iframe>
-
-                        {% endif %}
+                        <span class="offer-price">
+                            ₹399
+                        </span>
 
                     </div>
 
-                </a>
-
-                <div class="movie-card-info">
-
-                    <h3>{{ movie.title }}</h3>
-
-                    <p>⭐ {{ movie.rating|floatformat:1 }}</p>
-
-                    <div class="card-actions">
-
-                        <a href="/movie/{{ movie.id }}/" class="watch-btn">
-                            Watch Now
-                        </a>
-
-                        {% if user.is_authenticated %}
-
-                            {% if movie.id in wishlist_movie_ids %}
-
-                            <form action="{% url 'remove_from_wishlist' movie.id %}" method="POST">
-                                {% csrf_token %}
-                                <button type="submit" class="wishlist-btn active-heart">
-                                    ❤️
-                                </button>
-                            </form>
-
-                            {% else %}
-
-                            <form action="{% url 'add_to_wishlist' movie.id %}" method="POST">
-                                {% csrf_token %}
-                                <button type="submit" class="wishlist-btn">
-                                    🤍
-                                </button>
-                            </form>
-
-                            {% endif %}
-
-                        {% endif %}
-
-                    </div>
+                    <a
+                        href="/food-offers/"
+                        class="food-btn"
+                    >
+                        Grab Offer
+                    </a>
 
                 </div>
 
             </div>
 
-            {% endfor %}
+            <!-- FOOD CARD -->
+
+            <div class="food-card">
+
+                <img
+                    src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=1200&auto=format&fit=crop"
+                    alt="Burger Combo"
+                >
+
+                <div class="food-info">
+
+                    <h3>
+                        Burger Combo
+                    </h3>
+
+                    <p>
+                        Burger + Fries + Coke
+                    </p>
+
+                    <div class="price-row">
+
+                        <span class="old-price">
+                            ₹699
+                        </span>
+
+                        <span class="offer-price">
+                            ₹499
+                        </span>
+
+                    </div>
+
+                    <a
+                        href="/food-offers/"
+                        class="food-btn"
+                    >
+                        Grab Offer
+                    </a>
+
+                </div>
+
+            </div>
+
+            <!-- FOOD CARD -->
+
+            <div class="food-card">
+
+                <img
+                    src="https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=1200&auto=format&fit=crop"
+                    alt="Pizza Combo"
+                >
+
+                <div class="food-info">
+
+                    <h3>
+                        Pizza Combo
+                    </h3>
+
+                    <p>
+                        Medium Pizza + Pepsi
+                    </p>
+
+                    <div class="price-row">
+
+                        <span class="old-price">
+                            ₹899
+                        </span>
+
+                        <span class="offer-price">
+                            ₹699
+                        </span>
+
+                    </div>
+
+                    <a
+                        href="/food-offers/"
+                        class="food-btn"
+                    >
+                        Grab Offer
+                    </a>
+
+                </div>
+
+            </div>
 
         </div>
 
     </section>
 
-    {% endfor %}
+    <!-- OFFERS SECTION -->
 
-    <!-- FEATURES -->
-    <section class="features-section">
+    <section class="offers-section">
 
-        <div class="feature-card">
-            <i class="fa-solid fa-robot"></i>
-            <h3>AI Recommendations</h3>
-            <p>
-                Smart movie suggestions based on mood, genre and trends.
-            </p>
-        </div>
+        <div class="offer-banner">
 
-        <div class="feature-card">
-            <i class="fa-solid fa-ticket"></i>
-            <h3>Fast Booking</h3>
-            <p>
-                Secure online booking with instant confirmation.
-            </p>
-        </div>
+            <div class="offer-content">
 
-        <div class="feature-card">
-            <i class="fa-solid fa-heart"></i>
-            <h3>Wishlist Support</h3>
-            <p>
-                Save movies for later and manage favorites easily.
-            </p>
+                <h2>
+                    🎟 Movie + Food Combo Offer
+                </h2>
+
+                <p>
+                    Book movie tickets and get up to
+                    40% OFF on food combos.
+                </p>
+
+                <a
+                    href="/food-offers/"
+                    class="offer-btn"
+                >
+                    Explore Deals
+                </a>
+
+            </div>
+
         </div>
 
     </section>
@@ -385,135 +366,91 @@
 </div>
 
 <style>
+
 .home-container{
     background:#0b0b0b;
     min-height:100vh;
 }
 
-/* HERO CAROUSEL */
-.hero-carousel{
+/* HERO */
+
+.hero-section{
     position:relative;
     min-height:88vh;
-    overflow:hidden;
-    background:#000;
-}
 
-.hero-slide{
-    position:absolute;
-    inset:0;
-    opacity:0;
-    transform:scale(1.03);
-    transition:opacity .9s ease, transform 1.1s ease;
-    pointer-events:none;
-}
+    display:flex;
+    align-items:center;
 
-.hero-slide.active{
-    opacity:1;
-    transform:scale(1);
-    pointer-events:auto;
-    z-index:2;
-}
+    padding:0 7%;
 
-.hero-bg{
-    position:absolute;
-    inset:0;
-}
+    background:
+        linear-gradient(
+            rgba(0,0,0,.72),
+            rgba(0,0,0,.92)
+        ),
 
-.hero-bg img{
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    filter:brightness(.68);
+        url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=2070&auto=format&fit=crop');
+
+    background-size:cover;
+    background-position:center;
 }
 
 .hero-overlay{
     position:absolute;
     inset:0;
-    background:
-        linear-gradient(
-            90deg,
-            rgba(0,0,0,.92) 0%,
-            rgba(0,0,0,.72) 40%,
-            rgba(0,0,0,.25) 100%
-        ),
-        linear-gradient(
-            to top,
-            rgba(11,11,11,1) 0%,
-            rgba(11,11,11,.22) 55%,
-            rgba(11,11,11,.05) 100%
-        );
 }
 
 .hero-content{
     position:relative;
-    z-index:3;
+    z-index:2;
     max-width:760px;
-    height:100%;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    padding:0 7%;
-    padding-top:80px;
 }
 
-.hero-badge{
+.hero-tag{
     display:inline-block;
+
     background:#ff4d4d;
-    color:white;
-    padding:8px 14px;
+
+    padding:10px 18px;
+
     border-radius:999px;
-    font-size:13px;
+
+    font-size:14px;
+
     font-weight:700;
-    margin-bottom:18px;
-    width:max-content;
+
+    margin-bottom:22px;
 }
 
 .hero-content h1{
-    font-size:68px;
-    line-height:1.08;
-    margin-bottom:22px;
-    max-width:700px;
-}
-
-.hero-text{
-    color:#d3d3d3;
-    font-size:18px;
-    line-height:1.8;
+    font-size:72px;
+    line-height:1.1;
     margin-bottom:24px;
-    max-width:620px;
 }
 
-.hero-meta{
-    display:flex;
-    gap:14px;
-    flex-wrap:wrap;
-    margin-bottom:28px;
-}
+.hero-content p{
+    color:#d0d0d0;
 
-.hero-meta span{
-    background:rgba(255,255,255,.08);
-    border:1px solid rgba(255,255,255,.12);
-    padding:8px 12px;
-    border-radius:999px;
-    font-size:14px;
-    color:#f0f0f0;
-    backdrop-filter:blur(8px);
+    font-size:18px;
+
+    line-height:1.8;
+
+    margin-bottom:36px;
 }
 
 .hero-buttons{
     display:flex;
-    gap:14px;
-    flex-wrap:wrap;
+    gap:18px;
 }
 
 .hero-btn{
-    padding:15px 28px;
+    padding:16px 30px;
+
     border-radius:14px;
-    font-weight:800;
+
+    font-weight:700;
+
     transition:.3s;
-    display:inline-flex;
-    align-items:center;
-    gap:8px;
 }
 
 .primary-btn{
@@ -527,141 +464,113 @@
 }
 
 .hero-btn:hover{
-    transform:translateY(-3px);
-    opacity:.95;
-}
-
-/* CAROUSEL BUTTONS */
-.carousel-btn{
-    position:absolute;
-    top:50%;
-    transform:translateY(-50%);
-    z-index:4;
-    width:48px;
-    height:48px;
-    border:none;
-    border-radius:50%;
-    background:rgba(20,20,20,.7);
-    color:white;
-    cursor:pointer;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    transition:.3s;
-    backdrop-filter:blur(8px);
-}
-
-.carousel-btn:hover{
-    background:#ff4d4d;
-}
-
-.prev-btn{
-    left:22px;
-}
-
-.next-btn{
-    right:22px;
-}
-
-.carousel-dots{
-    position:absolute;
-    left:50%;
-    bottom:24px;
-    transform:translateX(-50%);
-    z-index:4;
-    display:flex;
-    gap:10px;
-}
-
-.dot{
-    width:10px;
-    height:10px;
-    border:none;
-    border-radius:999px;
-    background:rgba(255,255,255,.35);
-    cursor:pointer;
-    transition:.3s;
-}
-
-.dot.active{
-    background:#ff4d4d;
-    width:28px;
+    transform:translateY(-4px);
 }
 
 /* SECTION */
+
 .section-block{
-    padding:50px 5%;
+    padding:60px 5%;
 }
 
 .section-header{
-    margin-bottom:22px;
+    margin-bottom:24px;
 }
 
 .section-header h2{
-    font-size:32px;
+    font-size:34px;
 }
 
-/* MOVIE ROW */
-.movie-row,
-.continue-row{
+/* MOVIES */
+
+.movie-row{
     display:flex;
-    gap:22px;
+    gap:24px;
     overflow-x:auto;
     padding-bottom:12px;
 }
 
-.movie-row::-webkit-scrollbar,
-.continue-row::-webkit-scrollbar{
-    height:8px;
-}
-
-.movie-row::-webkit-scrollbar-thumb,
-.continue-row::-webkit-scrollbar-thumb{
-    background:#ff4d4d;
-    border-radius:999px;
-}
-
 .movie-card{
-    min-width:250px;
+    min-width:240px;
+
     background:#181818;
-    border-radius:18px;
+
+    border-radius:20px;
+
     overflow:hidden;
+
     transition:.3s;
 }
 
 .movie-card:hover{
-    transform:translateY(-8px);
+    transform:translateY(-10px);
 }
 
-.media-container{
+.poster-wrapper{
     position:relative;
-    height:360px;
     overflow:hidden;
 }
 
 .poster-image{
     width:100%;
-    height:100%;
+    height:350px;
     object-fit:cover;
-    transition:.4s;
 }
 
-.trailer-preview{
+.no-poster{
+    width:100%;
+    height:350px;
+
+    background:#1d1d1d;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    color:#777;
+}
+
+.hover-overlay{
     position:absolute;
     inset:0;
-    width:100%;
-    height:100%;
+
+    background:
+        linear-gradient(
+            to top,
+            rgba(0,0,0,.9),
+            transparent
+        );
+
     opacity:0;
-    pointer-events:none;
-    transition:.4s;
+
+    transition:.3s;
+
+    display:flex;
+    align-items:flex-end;
+
+    padding:20px;
 }
 
-.movie-card:hover .poster-image{
-    opacity:0;
-}
-
-.movie-card:hover .trailer-preview{
+.movie-card:hover .hover-overlay{
     opacity:1;
+}
+
+.hover-content h3{
+    margin-bottom:8px;
+}
+
+.hover-content p{
+    margin-bottom:8px;
+}
+
+.hover-content span{
+    background:#ff4d4d;
+
+    padding:6px 12px;
+
+    border-radius:999px;
+
+    font-size:12px;
 }
 
 .movie-card-info{
@@ -670,267 +579,165 @@
 
 .movie-card-info h3{
     margin-bottom:10px;
-    font-size:20px;
 }
 
 .movie-card-info p{
-    color:#bbb;
-    margin-bottom:16px;
+    color:#cfcfcf;
 }
 
 .card-actions{
     display:flex;
     justify-content:space-between;
     align-items:center;
-    gap:10px;
+
+    margin-top:18px;
 }
 
 .watch-btn{
     background:#ff4d4d;
     color:white;
+
     padding:10px 16px;
+
     border-radius:10px;
-    font-size:14px;
-    font-weight:700;
 }
 
 .wishlist-btn{
     width:42px;
     height:42px;
-    border:none;
-    border-radius:50%;
-    background:#232323;
-    color:white;
-    font-size:18px;
-    cursor:pointer;
-    transition:.3s;
-}
 
-.wishlist-btn:hover{
-    background:#ff4d4d;
+    border:none;
+
+    border-radius:50%;
+
+    background:#232323;
+
+    color:white;
+
+    cursor:pointer;
 }
 
 .active-heart{
-    background:#ff4d4d !important;
-}
-
-/* CONTINUE WATCHING */
-.continue-card{
-    min-width:320px;
-    background:#181818;
-    border-radius:18px;
-    overflow:hidden;
-    transition:.3s;
-}
-
-.continue-card:hover{
-    transform:scale(1.03);
-}
-
-.continue-card img{
-    width:100%;
-    height:180px;
-    object-fit:cover;
-}
-
-.continue-info{
-    padding:16px;
-}
-
-.progress-bar{
-    width:100%;
-    height:8px;
-    background:#2c2c2c;
-    border-radius:999px;
-    overflow:hidden;
-    margin-top:12px;
-}
-
-.progress-fill{
-    height:100%;
     background:#ff4d4d;
 }
 
-/* FEATURES */
-.features-section{
-    padding:40px 5% 90px;
+/* FOOD */
+
+.food-grid{
     display:grid;
-    grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-    gap:24px;
+
+    grid-template-columns:
+        repeat(auto-fit,minmax(280px,1fr));
+
+    gap:26px;
 }
 
-.feature-card{
-    background:#151515;
-    border:1px solid #232323;
+.food-card{
+    background:#181818;
+
     border-radius:22px;
-    padding:34px;
+
+    overflow:hidden;
+
     transition:.3s;
 }
 
-.feature-card:hover{
-    transform:translateY(-6px);
-    border-color:#ff4d4d;
+.food-card:hover{
+    transform:translateY(-10px);
 }
 
-.feature-card i{
-    font-size:36px;
-    color:#ff4d4d;
+.food-card img{
+    width:100%;
+    height:260px;
+    object-fit:cover;
+}
+
+.food-info{
+    padding:22px;
+}
+
+.food-info h3{
+    margin-bottom:12px;
+}
+
+.food-info p{
+    color:#c9c9c9;
+    margin-bottom:16px;
+}
+
+.price-row{
+    display:flex;
+    gap:12px;
+    align-items:center;
+
     margin-bottom:18px;
 }
 
-.feature-card h3{
-    margin-bottom:14px;
+.old-price{
+    text-decoration:line-through;
+    color:#999;
+}
+
+.offer-price{
+    color:#ff4d4d;
     font-size:24px;
+    font-weight:700;
 }
 
-.feature-card p{
-    color:#bcbcbc;
-    line-height:1.7;
-}
-/* HERO CAROUSEL */
+.food-btn{
+    display:inline-block;
 
-.hero-carousel{
-    position:relative;
-    height:92vh;
-    overflow:hidden;
-}
+    background:#ff4d4d;
 
-.hero-slide{
-    position:absolute;
-    inset:0;
-    opacity:0;
-    transition:opacity 1s ease-in-out;
+    padding:12px 18px;
+
+    border-radius:12px;
+
+    font-weight:700;
 }
 
-.active-slide{
-    opacity:1;
-    z-index:2;
+/* OFFER */
+
+.offers-section{
+    padding:20px 5% 80px;
 }
 
-.hero-bg{
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    position:absolute;
-    inset:0;
-}
-
-.hero-overlay{
-    position:absolute;
-    inset:0;
+.offer-banner{
     background:
         linear-gradient(
-            to right,
-            rgba(0,0,0,.92) 15%,
-            rgba(0,0,0,.5) 45%,
-            rgba(0,0,0,.82) 100%
-        ),
-        linear-gradient(
-            to top,
-            #0b0b0b 0%,
-            transparent 45%
+            135deg,
+            #ff4d4d,
+            #b30000
         );
+
+    border-radius:28px;
+
+    padding:60px;
+
+    text-align:center;
 }
 
-.hero-content{
-    position:relative;
-    z-index:3;
-    max-width:700px;
-    padding-left:7%;
-    padding-top:18vh;
+.offer-content h2{
+    font-size:42px;
+    margin-bottom:18px;
 }
 
-.hero-tag{
-    display:inline-block;
-    background:#ff4d4d;
-    padding:8px 18px;
-    border-radius:999px;
-    font-size:14px;
-    font-weight:700;
-    margin-bottom:20px;
-}
-
-.hero-content h1{
-    font-size:74px;
-    line-height:1.05;
-    margin-bottom:22px;
-}
-
-.hero-content p{
+.offer-content p{
     font-size:18px;
-    color:#d3d3d3;
-    line-height:1.8;
-    margin-bottom:24px;
-    max-width:620px;
+    margin-bottom:28px;
 }
 
-.hero-meta{
-    display:flex;
-    gap:14px;
-    flex-wrap:wrap;
-    margin-bottom:30px;
-}
+.offer-btn{
+    display:inline-block;
 
-.hero-meta span{
-    background:rgba(255,255,255,.12);
-    padding:10px 16px;
-    border-radius:999px;
-    backdrop-filter:blur(8px);
-}
+    background:white;
+    color:black;
 
-.hero-buttons{
-    display:flex;
-    gap:18px;
-    align-items:center;
-}
+    padding:14px 24px;
 
-.hero-watch-btn{
-    background:#ff4d4d;
-    color:white;
-    padding:16px 30px;
     border-radius:14px;
-    font-size:16px;
+
     font-weight:700;
-    transition:.3s;
-}
-
-.hero-watch-btn:hover{
-    transform:translateY(-3px);
-}
-
-.hero-wishlist{
-    width:54px;
-    height:54px;
-    border:none;
-    border-radius:50%;
-    background:rgba(255,255,255,.12);
-    color:white;
-    font-size:22px;
-    cursor:pointer;
-    backdrop-filter:blur(8px);
-}
-
-.carousel-dots{
-    position:absolute;
-    bottom:32px;
-    left:50%;
-    transform:translateX(-50%);
-    z-index:4;
-    display:flex;
-    gap:12px;
-}
-
-.dot{
-    width:12px;
-    height:12px;
-    border-radius:50%;
-    background:rgba(255,255,255,.4);
-    transition:.3s;
-}
-
-.active-dot{
-    background:#ff4d4d;
-    transform:scale(1.25);
 }
 
 /* RESPONSIVE */
@@ -938,174 +745,35 @@
 @media(max-width:900px){
 
     .hero-content h1{
-        font-size:52px;
+        font-size:50px;
     }
 
 }
 
 @media(max-width:600px){
 
-    .hero-carousel{
-        height:78vh;
-    }
-
-    .hero-content{
-        padding:120px 20px 0;
-    }
-
-    .hero-content h1{
-        font-size:36px;
-    }
-
-    .hero-content p{
-        font-size:15px;
-    }
-
-}
-/* RESPONSIVE */
-@media(max-width:900px){
-    .hero-content h1{
-        font-size:46px;
-    }
-
-    .hero-text{
-        font-size:16px;
-    }
-
-    .section-header h2{
-        font-size:26px;
-    }
-
-    .carousel-btn{
-        width:42px;
-        height:42px;
-    }
-}
-
-@media(max-width:600px){
-    .hero-carousel{
-        min-height:78vh;
-    }
-
-    .hero-content{
+    .hero-section{
         padding:0 20px;
-        padding-top:70px;
     }
 
     .hero-content h1{
-        font-size:34px;
-    }
-
-    .hero-text{
-        font-size:15px;
-    }
-
-    .hero-buttons{
-        flex-direction:column;
-        width:100%;
-    }
-
-    .hero-btn{
-        width:100%;
-        justify-content:center;
+        font-size:38px;
     }
 
     .movie-card{
-        min-width:220px;
+        min-width:210px;
     }
 
-    .continue-card{
-        min-width:260px;
+    .offer-banner{
+        padding:40px 20px;
     }
 
-    .prev-btn{
-        left:10px;
+    .offer-content h2{
+        font-size:30px;
     }
 
-    .next-btn{
-        right:10px;
-    }
 }
+
 </style>
-
-<script>
-    let heroIndex = 0;
-    const heroSlides = document.querySelectorAll('.hero-slide');
-    const heroDots = document.querySelectorAll('.dot');
-    let heroTimer = null;
-
-    function showHero(index) {
-        if (!heroSlides.length) return;
-
-        heroSlides.forEach((slide, i) => {
-            slide.classList.toggle('active', i === index);
-        });
-
-        heroDots.forEach((dot, i) => {
-            dot.classList.toggle('active', i === index);
-        });
-
-        heroIndex = index;
-    }
-
-    function moveHero(direction) {
-        if (!heroSlides.length) return;
-        const nextIndex = (heroIndex + direction + heroSlides.length) % heroSlides.length;
-        showHero(nextIndex);
-        resetHeroTimer();
-    }
-
-    function goToHero(index) {
-        showHero(index);
-        resetHeroTimer();
-    }
-
-    function resetHeroTimer() {
-        if (heroTimer) clearInterval(heroTimer);
-        heroTimer = setInterval(() => {
-            moveHero(1);
-        }, 5000);
-    }
-
-    if (heroSlides.length > 1) {
-        resetHeroTimer();
-    }
-</script>
-
-<script>
-
-const slides = document.querySelectorAll(".hero-slide");
-const dots = document.querySelectorAll(".dot");
-
-let currentSlide = 0;
-
-function showSlide(index){
-
-    slides.forEach(slide=>{
-        slide.classList.remove("active-slide");
-    });
-
-    dots.forEach(dot=>{
-        dot.classList.remove("active-dot");
-    });
-
-    slides[index].classList.add("active-slide");
-    dots[index].classList.add("active-dot");
-}
-
-function autoSlide(){
-
-    currentSlide++;
-
-    if(currentSlide >= slides.length){
-        currentSlide = 0;
-    }
-
-    showSlide(currentSlide);
-}
-
-setInterval(autoSlide, 5000);
-
-</script>
 
 {% endblock %}

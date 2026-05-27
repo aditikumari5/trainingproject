@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="food-page">
+    <section class="food-hero">
+        <h1>Food, Tickets & Combo Offers 🍿</h1>
+        <p>Grab snacks, drinks, and special offers with your movie booking.</p>
+    </section>
+
+    <section class="section-block">
+        <h2>🍔 Food Menu</h2>
+
+        <div class="grid">
+            {% for item in food_items %}
+            <div class="card">
+                {% if item.image_url %}
+                <img src="{{ item.image_url }}" alt="{{ item.name }}">
+                {% endif %}
+
+                <h3>{{ item.name }}</h3>
+                <p>{{ item.description }}</p>
+                <p><strong>₹{{ item.price }}</strong></p>
+
+                <form action="{% url 'add_food_to_cart' item.id %}" method="POST">
+                    {% csrf_token %}
+                    <button type="submit" class="btn">Add to Cart</button>
+                </form>
+            </div>
+            {% empty %}
+            <p>No food items available right now.</p>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="section-block">
+        <h2>🛒 Your Cart</h2>
+
+        {% if cart_items %}
+        <div class="grid">
+            {% for item in cart_items %}
+            <div class="card">
+                <h3>{{ item.food_item.name }}</h3>
+                <p>Price: ₹{{ item.food_item.price }}</p>
+                <p>Qty: {{ item.quantity }}</p>
+                <p><strong>Total: ₹{{ item.total_price }}</strong></p>
+
+                <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                    <form action="{% url 'update_food_qty' item.food_item.id 'dec' %}" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn">-</button>
+                    </form>
+
+                    <form action="{% url 'update_food_qty' item.food_item.id 'inc' %}" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn">+</button>
+                    </form>
+
+                    <form action="{% url 'remove_food_from_cart' item.food_item.id %}" method="POST">
+                        {% csrf_token %}
+                        <button type="submit" class="btn">Remove</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <h3 style="margin-top:20px;">Grand Total: ₹{{ cart_total }}</h3>
+        {% else %}
+            <p>Your cart is empty.</p>
+        {% endif %}
+    </section>
+</div>
+
+<style>
+.food-page{
+    padding:40px 5%;
+    background:#0b0b0b;
+    color:white;
+}
+.food-hero{
+    text-align:center;
+    padding:50px 20px;
+    background:linear-gradient(135deg,#181818,#111);
+    border-radius:24px;
+    margin-bottom:30px;
+}
+.section-block{
+    margin-top:30px;
+}
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:22px;
+}
+.card{
+    background:#181818;
+    border-radius:18px;
+    padding:18px;
+    box-shadow:0 4px 18px rgba(0,0,0,.35);
+}
+.card img{
+    width:100%;
+    height:180px;
+    object-fit:cover;
+    border-radius:14px;
+    margin-bottom:12px;
+}
+.card h3{
+    margin:8px 0;
+}
+.card p{
+    color:#cfcfcf;
+    margin:6px 0;
+}
+.btn{
+    background:#ff4d4d;
+    color:white;
+    border:none;
+    padding:10px 14px;
+    border-radius:10px;
+    cursor:pointer;
+    font-weight:700;
+}
+</style>
+
+{% endblock %}
