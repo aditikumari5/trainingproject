@@ -6,7 +6,6 @@ import random
 import re
 from datetime import datetime, timedelta
 from decimal import Decimal
-
 import qrcode
 import razorpay
 import requests
@@ -34,7 +33,6 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
-
 from .models import (
     Booking,
     ContinueWatching,
@@ -45,6 +43,18 @@ from .models import (
     Show,
     Wishlist,
 )
+
+from django.http import HttpResponse
+from django.shortcuts import render
+from django.http import JsonResponse, HttpResponse
+import razorpay
+from django.db import transaction
+from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render
+
+
+
+
 
 BOOKING_HAS_USER_FIELD = any(f.name == "user" for f in Booking._meta.get_fields())
 MOVIE_HAS_BUDGET_FIELD = any(f.name == "budget_level" for f in Movie._meta.get_fields())
@@ -742,15 +752,16 @@ def show_seats(request):
     request.session["show_time"] = str(show.show_time)
 
     return render(
-        request,
-        "booking/seats.html",
-        {
-            "seats": seats,
-            "movie": show.movie_name,
-            "show_time": show.show_time,
-            "now": timezone.now(),
-        },
-    )
+    request,
+    "booking/seats.html",
+    {
+        "show": show,
+        "seats": seats,
+        "movie": show.movie_name,
+        "show_time": show.show_time,
+        "now": timezone.now(),
+    },
+)
 
 
 @login_required
@@ -770,48 +781,77 @@ def book_seat(request, seat_id):
 @login_required
 def book_multiple(request):
     if request.method != "POST":
-        return redirect("/seats/")
+        return HttpResponse("Invalid request", status=405)
 
-    seat_ids = request.POST.getlist("seats")
-    if not seat_ids:
-        return redirect("/seats/")
+    selected_seats = request.POST.getlist("selected_seats")
+    show_id = request.POST.get("show_id")
 
-    release_expired_locks()
+    print("POST DATA:", request.POST)
+    print("selected_seats:", selected_seats)
+    print("show_id:", show_id)
 
-    with transaction.atomic():
-        selected_seats = Seat.objects.select_for_update().filter(id__in=seat_ids)
+    if not selected_seats:
+        return HttpResponse("No seats selected", status=400)
 
-        if not selected_seats.exists():
-            return redirect("/seats/")
+    if not show_id:
+        return HttpResponse("Show ID missing", status=400)
 
-        if selected_seats.values("show").distinct().count() != 1:
-            return HttpResponseBadRequest("Selected seats must belong to the same show")
+    show = get_object_or_404(Show, id=show_id)
 
-        if selected_seats.filter(is_booked=True).exists():
-            return HttpResponse("One or more selected seats are already booked")
+    seats_qs = Seat.objects.filter(show=show, seat_number__in=selected_seats)
 
-        if selected_seats.filter(is_locked=True).exists():
-            return HttpResponse("One or more selected seats are temporarily locked")
+    if seats_qs.count() != len(selected_seats):
+        return HttpResponse("One or more seats are invalid", status=400)
 
-        show = selected_seats.first().show
-        lock_owner = request.session.session_key
-        if not lock_owner:
-            request.session.create()
-            lock_owner = request.session.session_key
+    if seats_qs.filter(is_booked=True).exists():
+        return HttpResponse("One or more selected seats are already booked", status=400)
 
-        expires_at = lock_seats(selected_seats, lock_owner, minutes=5)
+    if seats_qs.filter(is_locked=True).exists():
+        return HttpResponse("One or more selected seats are locked", status=400)
 
-        request.session["booked_seats"] = seat_ids
-        request.session["show_id"] = show.id
-        request.session["movie_name"] = show.movie_name
-        request.session["show_time"] = str(show.show_time)
-        request.session["seats"] = ", ".join(seat.seat_number for seat in selected_seats)
-        request.session["amount"] = sum(seat.price for seat in selected_seats)
-        request.session["lock_expires_at"] = expires_at.isoformat()
+    total_price = sum(int(seat.price) for seat in seats_qs)
 
-    return redirect("/payment/")
+    # Save session first
+    request.session["selected_seats"] = selected_seats
+    request.session["show_id"] = show.id
+    request.session["total_price"] = str(total_price)
+    request.session.modified = True
+    request.session.save()
 
+    # Razorpay client
+    try:
+        client = razorpay.Client(
+            auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
+        )
+    except Exception as e:
+        return HttpResponse(f"Razorpay client creation failed: {e}", status=500)
 
+    # Create order
+    order_data = {
+        "amount": int(total_price * 100),
+        "currency": "INR",
+        "payment_capture": "1",
+    }
+
+    try:
+        order = client.order.create(data=order_data)
+    except Exception as e:
+        return HttpResponse(f"Razorpay order creation failed: {e}", status=500)
+
+    print("ORDER CREATED:", order)
+
+    request.session["razorpay_order_id"] = order["id"]
+    request.session.save()
+
+    return render(request, "booking/payment.html", {
+        "show": show,
+        "selected_seats": selected_seats,
+        "total_price": total_price,
+        "order_id": order["id"],
+        "razorpay_key": settings.RAZORPAY_KEY_ID,
+        "amount": int(total_price * 100),
+        "currency": "INR",
+    })
 # ---------------------------
 # PAYMENT
 # ---------------------------
@@ -892,88 +932,122 @@ def payment_view(request):
         },
     )
 
+# ---------------------------
+# PAYMENT success
+# ---------------------------
+
 @csrf_exempt
 def payment_success(request):
-    if request.method != "POST":
-        return HttpResponseBadRequest("Invalid request")
+    print("SESSION:", dict(request.session))
 
-    razorpay_payment_id = request.POST.get("razorpay_payment_id")
-    razorpay_order_id = request.POST.get("razorpay_order_id")
-    razorpay_signature = request.POST.get("razorpay_signature")
+    seats = request.session.get("selected_seats")
+    show_id = request.session.get("show_id")
+    total_price = request.session.get("total_price")
 
-    if not razorpay_payment_id or not razorpay_order_id or not razorpay_signature:
-        return HttpResponseBadRequest("Missing payment details")
+    razorpay_order_id = request.POST.get("razorpay_order_id", "")
+    razorpay_payment_id = request.POST.get("razorpay_payment_id", "")
+    razorpay_signature = request.POST.get("razorpay_signature", "")
 
-    generated_signature = hmac.new(
-        key=settings.RAZORPAY_KEY_SECRET.encode(),
-        msg=f"{razorpay_order_id}|{razorpay_payment_id}".encode(),
-        digestmod=hashlib.sha256,
-    ).hexdigest()
 
-    if not hmac.compare_digest(generated_signature, razorpay_signature):
-        return HttpResponseBadRequest("Payment signature verification failed")
+    if not seats:
+        return HttpResponse("No seats found in session", status=400)
 
-    seat_ids = request.session.get("booked_seats", [])
-    if not seat_ids:
-        return HttpResponseBadRequest("No seats found in session")
+    if not show_id:
+        return HttpResponse("Show not found in session", status=400)
 
-    user = request.user if request.user.is_authenticated else None
-    if user is None:
-        user_id = request.session.get("user_id") or request.session.get("signup_user_id")
-        if user_id:
-            user = User.objects.filter(id=user_id).first()
+    try:
+        show = Show.objects.get(id=show_id)
+    except Show.DoesNotExist:
+        return HttpResponse("Invalid show", status=404)
 
-    with transaction.atomic():
-        selected_seats = Seat.objects.select_for_update().filter(id__in=seat_ids)
+    try:
+        with transaction.atomic():
+            booking = Booking.objects.create(
+                user=request.user if request.user.is_authenticated else None,
+                movie_name=show.movie_name,
+                show_time=show.show_time,
+                seats=", ".join(seats),
+                amount=int(total_price),
+                razorpay_order_id=razorpay_order_id,
+                razorpay_payment_id=razorpay_payment_id,
+                payment_status=True,
+                payment_method="Razorpay",
+            )
 
-        if selected_seats.count() != len(seat_ids):
-            return HttpResponseBadRequest("Some seats are missing")
+            Seat.objects.filter(
+                show=show,
+                seat_number__in=seats
+            ).update(
+                is_booked=True,
+                is_locked=False
+            )
 
-        if selected_seats.filter(is_booked=True).exists():
-            return HttpResponse("One or more seats are already booked")
+            for key in [
+                "selected_seats",
+                "show_id",
+                "total_price",
+                "razorpay_order_id"
+            ]:
+                request.session.pop(key, None)
 
-        for seat in selected_seats:
-            seat.is_booked = True
-            seat.is_locked = False
-            seat.locked_by = ""
-            seat.locked_at = None
-            seat.lock_expires_at = None
-            seat.save()
+        return render(request, "booking/payment_success.html", {
+            "booking": booking
+        })
 
-        booking_kwargs = {
-            "movie_name": request.session.get("movie_name", "Unknown Movie"),
-            "show_time": request.session.get("show_time", "Unknown Time"),
-            "seats": request.session.get("seats", "N/A"),
-            "amount": int(request.session.get("amount", 500)),
-            "razorpay_order_id": razorpay_order_id,
-            "razorpay_payment_id": razorpay_payment_id,
-            "payment_status": True,
-            "payment_method": "Online",
+    except Exception as e:
+        return HttpResponse(f"Booking failed: {e}", status=500)
+# ---------------------------
+# INITIATE PAYMENT
+# ---------------------------
+
+@login_required
+def initiate_payment(request, show_id):
+    show = get_object_or_404(Show, id=show_id)
+
+    if request.method == "POST":
+        print("POST DATA:", request.POST)
+
+        selected_seats = request.POST.getlist("selected_seats")
+        print("SELECTED SEATS FROM FORM:", selected_seats)
+
+        if not selected_seats:
+            return HttpResponse("No seats selected", status=400)
+
+        seat_price = Decimal(str(show.price))
+        total_price = seat_price * len(selected_seats)
+
+        request.session["selected_seats"] = selected_seats
+        request.session["show_id"] = show.id
+        request.session["total_price"] = str(total_price)
+        request.session.modified = True
+        request.session.save()
+
+        print("SESSION SAVED IN INITIATE:", dict(request.session))
+
+        client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
+
+        order_data = {
+            "amount": int(total_price * 100),
+            "currency": "INR",
+            "payment_capture": "1",
         }
 
-        if BOOKING_HAS_USER_FIELD and user:
-            booking_kwargs["user"] = user
+        order = client.order.create(data=order_data)
+        request.session["razorpay_order_id"] = order["id"]
+        request.session.save()
 
-        booking = Booking.objects.create(**booking_kwargs)
-
-    send_booking_confirmation_email(user.email if user else None, booking)
-
-    request.session.pop("booked_seats", None)
-    request.session.pop("show_id", None)
-    request.session.pop("movie_name", None)
-    request.session.pop("show_time", None)
-    request.session.pop("seats", None)
-    request.session.pop("amount", None)
-    request.session.pop("razorpay_order_id", None)
-    request.session.pop("lock_expires_at", None)
-
-    return render(request, "booking/thank_you.html", {"booking": booking})
+        return render(request, "booking/payment.html", {
+            "show": show,
+            "selected_seats": selected_seats,
+            "total_price": total_price,
+            "order_id": order["id"],
+            "razorpay_key": settings.RAZORPAY_KEY_ID,
+            "amount": int(total_price * 100),
+            "currency": "INR",
+        })
 
 
-def cash_payment_success(request):
-    return payment_success(request)
-
-
+    return HttpResponse("Invalid request", status=405)
 # ---------------------------
 # HISTORY / PDF
 # ---------------------------
@@ -1547,3 +1621,10 @@ def verify_ticket(request, booking_id):
         "booking/verify_ticket.html",
         {"booking": booking},
     )
+
+
+# ---------------------------
+# EVENTS
+# ---------------------------
+def events(request):
+    return render(request, "booking/events.html")

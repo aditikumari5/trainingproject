@@ -2,167 +2,44 @@
 
 {% block content %}
 
-<h1 style="text-align:center; margin-bottom:30px;">
-    Payment Page 💳
-</h1>
+<div style="text-align:center; margin-top:100px;">
 
-<div class="payment-card">
+    <h1>Payment Successful ✅</h1>
 
-    <h2>{{ movie_name }}</h2>
+    <h3 style="margin-top:20px;">Booking Confirmed</h3>
 
-    <p><strong>Show Time:</strong> {{ show_time }}</p>
+    <p style="margin-top:20px;">
+        <strong>Movie:</strong> {{ booking.movie_name }}
+    </p>
 
-    <p><strong>Seats:</strong> {{ seats }}</p>
+    <p>
+        <strong>Show Time:</strong> {{ booking.show_time }}
+    </p>
 
-    <p><strong>Total Amount:</strong> ₹{{ amount }}</p>
+    <p>
+        <strong>Seats:</strong> {{ booking.seats }}
+    </p>
 
-    <!-- Razorpay Payment Button -->
-    <button id="pay-btn" class="pay-btn">
-        Pay Now
-    </button>
+    <p>
+        <strong>Amount Paid:</strong> ₹{{ booking.amount }}
+    </p>
 
-    <!-- Cash Payment Button -->
-    <form method="POST" action="/payment/cash/" style="margin-top:15px;">
-        {% csrf_token %}
-
-        <button type="submit" class="cash-btn">
-            Pay in Cash
+    <a href="{% url 'my_bookings' %}">
+        <button
+            style="
+                margin-top:25px;
+                padding:12px 20px;
+                background:#ff4d4d;
+                color:white;
+                border:none;
+                border-radius:10px;
+                cursor:pointer;
+            "
+        >
+            View My Bookings
         </button>
-    </form>
+    </a>
 
 </div>
-
-<!-- Hidden Form for Razorpay Success -->
-<form
-    id="payment-success-form"
-    method="POST"
-    action="/payment/success/"
-    style="display:none;"
->
-
-    {% csrf_token %}
-
-    <input
-        type="hidden"
-        name="razorpay_payment_id"
-        id="razorpay_payment_id"
-    >
-
-    <input
-        type="hidden"
-        name="razorpay_order_id"
-        id="razorpay_order_id"
-    >
-
-    <input
-        type="hidden"
-        name="razorpay_signature"
-        id="razorpay_signature"
-    >
-
-</form>
-
-<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-
-<script>
-
-    const options = {
-
-        key: "{{ razorpay_key_id }}",
-
-        amount: "{{ amount }}",
-
-        currency: "INR",
-
-        name: "ShowTime",
-
-        description: "{{ movie_name }} Booking",
-
-        order_id: "{{ order_id }}",
-
-        handler: function (response) {
-
-            document.getElementById("razorpay_payment_id").value =
-                response.razorpay_payment_id;
-
-            document.getElementById("razorpay_order_id").value =
-                response.razorpay_order_id;
-
-            document.getElementById("razorpay_signature").value =
-                response.razorpay_signature;
-
-            document.getElementById("payment-success-form").submit();
-        },
-
-        theme: {
-            color: "#ff4d4d"
-        }
-    };
-
-    const rzp = new Razorpay(options);
-
-    document.getElementById("pay-btn").onclick = function (e) {
-
-        e.preventDefault();
-
-        rzp.open();
-    };
-
-</script>
-
-<style>
-
-.payment-card{
-    width:420px;
-    margin:0 auto;
-    background:#181818;
-    padding:30px;
-    border-radius:18px;
-    text-align:center;
-    box-shadow:0 4px 18px rgba(0,0,0,.3);
-}
-
-.payment-card p{
-    font-size:16px;
-    margin:12px 0;
-    color:#ddd;
-}
-
-.pay-btn{
-    width:100%;
-    margin-top:20px;
-    padding:12px 26px;
-    border:none;
-    border-radius:10px;
-    background:#ff4d4d;
-    color:white;
-    font-size:16px;
-    cursor:pointer;
-    font-weight:bold;
-    transition:0.3s;
-}
-
-.pay-btn:hover{
-    background:#ff1f1f;
-}
-
-.cash-btn{
-    width:100%;
-    padding:12px 26px;
-    border:none;
-    border-radius:10px;
-    background:#444;
-    color:white;
-    font-size:16px;
-    cursor:pointer;
-    font-weight:bold;
-    transition:0.3s;
-}
-
-.cash-btn:hover{
-    background:#666;
-}
-
-</style>
 
 {% endblock %}

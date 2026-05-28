@@ -1,0 +1,484 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+
+body{
+    background:#0f0f0f;
+    color:white;
+    font-family:Arial,sans-serif;
+}
+
+.events-container{
+
+    width:90%;
+    max-width:1250px;
+
+    margin:40px auto;
+
+}
+
+.page-title{
+
+    text-align:center;
+
+    font-size:46px;
+
+    font-weight:bold;
+
+    margin-bottom:10px;
+
+}
+
+.page-subtitle{
+
+    text-align:center;
+
+    color:#bbb;
+
+    margin-bottom:45px;
+
+    font-size:17px;
+
+}
+
+/* EVENT SECTION */
+
+.event-section{
+
+    margin-bottom:45px;
+
+    background:#181818;
+
+    border-radius:28px;
+
+    padding:28px;
+
+    box-shadow:
+        0 10px 30px rgba(0,0,0,.3);
+
+}
+
+.event-section h2{
+
+    font-size:38px;
+
+    margin-bottom:12px;
+
+    color:#ff4d4d;
+
+}
+
+.event-section-desc{
+
+    color:#bbb;
+
+    margin-bottom:28px;
+
+    line-height:1.7;
+
+}
+
+/* GRID */
+
+.event-grid{
+
+    display:grid;
+
+    grid-template-columns:
+        repeat(auto-fit,minmax(240px,1fr));
+
+    gap:22px;
+
+}
+
+/* CARD */
+
+.event-card{
+
+    background:#111;
+
+    border-radius:22px;
+
+    padding:24px;
+
+    border:
+        1px solid rgba(255,255,255,.06);
+
+    transition:.3s;
+
+    position:relative;
+
+    overflow:hidden;
+
+}
+
+.event-card:hover{
+
+    transform:
+        translateY(-5px);
+
+    border-color:
+        rgba(255,77,77,.35);
+
+    box-shadow:
+        0 10px 30px rgba(0,0,0,.35);
+
+}
+
+.event-card::before{
+
+    content:"";
+
+    position:absolute;
+
+    top:0;
+    left:0;
+
+    width:100%;
+    height:5px;
+
+    background:
+        linear-gradient(
+            90deg,
+            #ff4d4d,
+            #ff884d
+        );
+
+}
+
+/* MUSIC THEME */
+
+.music-theme::before{
+
+    background:
+        linear-gradient(
+            90deg,
+            #6a11cb,
+            #2575fc
+        );
+
+}
+
+.event-card h3{
+
+    font-size:24px;
+
+    margin-bottom:12px;
+
+    color:white;
+
+}
+
+.event-card p{
+
+    color:#ccc;
+
+    line-height:1.7;
+
+    font-size:15px;
+
+}
+
+.event-badge{
+
+    display:inline-block;
+
+    margin-top:18px;
+
+    padding:8px 14px;
+
+    border-radius:30px;
+
+    background:#ff4d4d;
+
+    color:white;
+
+    font-size:13px;
+
+    font-weight:bold;
+
+}
+
+.music-theme .event-badge{
+
+    background:#2575fc;
+
+}
+
+/* RESPONSIVE */
+
+@media(max-width:768px){
+
+    .page-title{
+
+        font-size:34px;
+
+    }
+
+    .event-section h2{
+
+        font-size:30px;
+
+    }
+
+}
+
+</style>
+
+<div class="events-container">
+
+    <div class="page-title">
+        Events
+    </div>
+
+    <div class="page-subtitle">
+        Explore live entertainment across comedy and music categories.
+    </div>
+
+    <!-- COMEDY -->
+
+    <div class="event-section">
+
+        <h2>Comedy Shows</h2>
+
+        <div class="event-section-desc">
+
+            Enjoy live laughter with stand-up events, roast battles,
+            improv nights, sketch comedy, open mic performances,
+            and special comedy festivals.
+
+        </div>
+
+        <div class="event-grid">
+
+            <div class="event-card">
+
+                <h3>Stand-Up Events</h3>
+
+                <p>
+                    Live stand-up comedy performances by top comedians.
+                </p>
+
+                <div class="event-badge">
+                    Live Comedy
+                </div>
+
+            </div>
+
+            <div class="event-card">
+
+                <h3>Roast Battles</h3>
+
+                <p>
+                    Savage joke battles with crowd laughs and quick comebacks.
+                </p>
+
+                <div class="event-badge">
+                    Crowd Favorite
+                </div>
+
+            </div>
+
+            <div class="event-card">
+
+                <h3>Improv Nights</h3>
+
+                <p>
+                    Unscripted comedy created instantly with audience interaction.
+                </p>
+
+                <div class="event-badge">
+                    Interactive
+                </div>
+
+            </div>
+
+            <div class="event-card">
+
+                <h3>Sketch Comedy</h3>
+
+                <p>
+                    Funny scripted scenes with hilarious characters and stories.
+                </p>
+
+                <div class="event-badge">
+                    Comedy Skits
+                </div>
+
+            </div>
+
+            <div class="event-card">
+
+                <h3>Open Mic</h3>
+
+                <p>
+                    Upcoming comedians performing fresh comedy material.
+                </p>
+
+                <div class="event-badge">
+                    New Talent
+                </div>
+
+            </div>
+
+            <div class="event-card">
+
+                <h3>Comedy Festival</h3>
+
+                <p>
+                    Full evening packed with multiple comedy performances.
+                </p>
+
+                <div class="event-badge">
+                    Special Event
+                </div>
+
+            </div>
+
+            <div class="event-card">
+
+                <h3>Crowd Work Night</h3>
+
+                <p>
+                    Comedians interact directly with audience members live.
+                </p>
+
+                <div class="event-badge">
+                    Live Interaction
+                </div>
+
+            </div>
+
+            <div class="event-card">
+
+                <h3>Satire Show</h3>
+
+                <p>
+                    Smart and witty comedy based on trends and daily life.
+                </p>
+
+                <div class="event-badge">
+                    Fresh Humor
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- MUSIC -->
+
+    <div class="event-section">
+
+        <h2>Music Shows</h2>
+
+        <div class="event-section-desc">
+
+            Experience electrifying concerts,
+            music festivals, DJ nights,
+            and unforgettable club gigs.
+
+        </div>
+
+        <div class="event-grid">
+
+            <div class="event-card music-theme">
+
+                <h3>Concerts</h3>
+
+                <p>
+                    Live performances by singers,
+                    bands, and global artists.
+                </p>
+
+                <div class="event-badge">
+                    Live Music
+                </div>
+
+            </div>
+
+            <div class="event-card music-theme">
+
+                <h3>Music Festivals</h3>
+
+                <p>
+                    Massive outdoor festivals
+                    featuring multiple performers.
+                </p>
+
+                <div class="event-badge">
+                    Festival Season
+                </div>
+
+            </div>
+
+            <div class="event-card music-theme">
+
+                <h3>Club Gigs</h3>
+
+                <p>
+                    DJ nights and energetic music
+                    experiences at clubs.
+                </p>
+
+                <div class="event-badge">
+                    DJ Night
+                </div>
+
+            </div>
+
+            <div class="event-card music-theme">
+
+                <h3>Acoustic Nights</h3>
+
+                <p>
+                    Calm live acoustic performances
+                    with soulful music vibes.
+                </p>
+
+                <div class="event-badge">
+                    Acoustic Live
+                </div>
+
+            </div>
+
+            <div class="event-card music-theme">
+
+                <h3>Indie Shows</h3>
+
+                <p>
+                    Independent artists and bands
+                    performing original music live.
+                </p>
+
+                <div class="event-badge">
+                    Indie Scene
+                </div>
+
+            </div>
+
+            <div class="event-card music-theme">
+
+                <h3>EDM Nights</h3>
+
+                <p>
+                    High-energy electronic dance music
+                    events with top DJs.
+                </p>
+
+                <div class="event-badge">
+                    EDM Party
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}

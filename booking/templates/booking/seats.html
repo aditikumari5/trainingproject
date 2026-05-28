@@ -13,6 +13,7 @@
 <form method="POST" action="/book-multiple/" id="seat-form">
 
     {% csrf_token %}
+    <input type="hidden" name="show_id" value="{{ show.id }}">
 
     <div class="screen">
         SCREEN
@@ -35,8 +36,8 @@
 
                 <input
                     type="checkbox"
-                    name="seats"
-                    value="{{ seat.id }}"
+                    name="selected_seats"
+                    value="{{ seat.seat_number }}"
                     data-price="{{ seat.price }}"
 
                     {% if seat.is_booked or seat.is_locked %}
@@ -79,9 +80,7 @@
 
         <p>
             <strong>Selected Seats:</strong>
-            <span id="selected-seats">
-                None
-            </span>
+            <span id="selected-seats">None</span>
         </p>
 
         <p>
@@ -99,36 +98,20 @@
 
 <script>
 
-    const seatInputs = document.querySelectorAll(
-        'input[name="seats"]'
-    );
+    const seatInputs = document.querySelectorAll('input[name="selected_seats"]');
 
-    const selectedSeatsText = document.getElementById(
-        "selected-seats"
-    );
+    const selectedSeatsText = document.getElementById("selected-seats");
+    const totalPriceText = document.getElementById("total-price");
 
-    const totalPriceText = document.getElementById(
-        "total-price"
-    );
-
-    function updateSummary(){
-
+    function updateSummary() {
         let selectedSeats = [];
         let total = 0;
 
         seatInputs.forEach(seat => {
-
-            if(seat.checked){
-
-                selectedSeats.push(
-                    seat.parentElement.innerText.trim()
-                );
-
-                total += parseInt(
-                    seat.dataset.price
-                );
+            if (seat.checked) {
+                selectedSeats.push(seat.value);
+                total += parseInt(seat.dataset.price);
             }
-
         });
 
         selectedSeatsText.innerText =
@@ -137,14 +120,10 @@
             : "None";
 
         totalPriceText.innerText = total;
-
     }
 
     seatInputs.forEach(seat => {
-        seat.addEventListener(
-            "change",
-            updateSummary
-        );
+        seat.addEventListener("change", updateSummary);
     });
 
 </script>
@@ -156,8 +135,6 @@ body{
     color:white;
     font-family:Arial,sans-serif;
 }
-
-/* SCREEN */
 
 .screen{
     width:80%;
@@ -171,8 +148,6 @@ body{
     transform:perspective(300px) rotateX(-10deg);
     box-shadow:0 8px 25px rgba(255,255,255,.2);
 }
-
-/* SEATS */
 
 .seat-container{
     display:grid;
@@ -198,8 +173,6 @@ body{
     display:none;
 }
 
-/* AVAILABLE */
-
 .available{
     background:#27ae60;
 }
@@ -213,15 +186,11 @@ body{
     color:black;
 }
 
-/* BOOKED */
-
 .booked{
     background:#e74c3c;
     cursor:not-allowed;
     opacity:0.75;
 }
-
-/* LOCKED */
 
 .locked{
     background:#f39c12;
@@ -233,8 +202,6 @@ body{
 .seat-number{
     font-size:15px;
 }
-
-/* LEGEND */
 
 .legend{
     display:flex;
@@ -267,8 +234,6 @@ body{
 .booked-box{
     background:#e74c3c;
 }
-
-/* SUMMARY */
 
 .summary-box{
     max-width:420px;
@@ -308,14 +273,10 @@ body{
     background:#ff1f1f;
 }
 
-/* RESPONSIVE */
-
 @media(max-width:768px){
-
     .seat-container{
         grid-template-columns:repeat(5, 1fr);
     }
-
 }
 
 </style>

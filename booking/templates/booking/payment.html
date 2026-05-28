@@ -18,24 +18,24 @@
 
     .payment-container{
         width:90%;
-        max-width:1200px;
+        max-width:1100px;
         margin:40px auto;
     }
 
     .payment-title{
-        font-size:42px;
+        font-size:38px;
         font-weight:bold;
         margin-bottom:10px;
     }
 
     .payment-subtitle{
         color:#aaa;
-        margin-bottom:40px;
+        margin-bottom:35px;
     }
 
     .payment-grid{
         display:grid;
-        grid-template-columns:1fr 400px;
+        grid-template-columns:1fr 380px;
         gap:30px;
     }
 
@@ -48,16 +48,16 @@
     }
 
     .section-title{
-        font-size:24px;
+        font-size:22px;
         font-weight:bold;
-        margin-bottom:25px;
+        margin-bottom:22px;
     }
 
     .summary-row{
         display:flex;
         justify-content:space-between;
         align-items:center;
-        padding:15px 0;
+        padding:14px 0;
         border-bottom:1px solid rgba(255,255,255,0.08);
     }
 
@@ -70,10 +70,10 @@
     }
 
     .final-box{
-        margin-top:30px;
+        margin-top:28px;
         background:linear-gradient(135deg,#ff4d4d,#b30000);
         border-radius:18px;
-        padding:25px;
+        padding:22px;
     }
 
     .final-text{
@@ -82,46 +82,9 @@
     }
 
     .final-amount{
-        font-size:40px;
+        font-size:36px;
         font-weight:bold;
         margin-top:8px;
-    }
-
-    .timer-box{
-        margin-top:25px;
-        background:#181818;
-        border-radius:15px;
-        padding:18px;
-        border:1px solid rgba(255,255,255,0.08);
-    }
-
-    .timer-title{
-        color:#aaa;
-        margin-bottom:8px;
-    }
-
-    .timer{
-        color:#00ff99;
-        font-size:24px;
-        font-weight:bold;
-    }
-
-    .food-item{
-        display:flex;
-        justify-content:space-between;
-        margin-bottom:15px;
-        padding-bottom:15px;
-        border-bottom:1px solid rgba(255,255,255,0.08);
-    }
-
-    .food-name{
-        font-weight:bold;
-    }
-
-    .food-meta{
-        color:#aaa;
-        font-size:14px;
-        margin-top:4px;
     }
 
     .payment-buttons{
@@ -133,7 +96,7 @@
 
     .pay-btn{
         width:100%;
-        padding:16px;
+        padding:15px;
         border:none;
         border-radius:14px;
         font-size:16px;
@@ -170,19 +133,17 @@
         background:#262626;
     }
 
-    .payment-note{
-        margin-top:25px;
+    .note{
+        margin-top:22px;
         color:#999;
         font-size:14px;
         line-height:1.6;
     }
 
     @media(max-width:900px){
-
         .payment-grid{
             grid-template-columns:1fr;
         }
-
     }
 </style>
 
@@ -193,12 +154,13 @@
     </div>
 
     <div class="payment-subtitle">
-        Review your ticket details and complete payment securely.
+        Review your ticket details and choose a payment method.
     </div>
 
     <div class="payment-grid">
 
         <!-- LEFT -->
+
         <div class="payment-card">
 
             <div class="section-title">
@@ -207,99 +169,46 @@
 
             <div class="summary-row">
                 <div class="summary-label">Movie</div>
-                <div class="summary-value">{{ movie_name }}</div>
+                <div class="summary-value">
+                    {{ show.movie_name }}
+                </div>
             </div>
 
             <div class="summary-row">
                 <div class="summary-label">Show Time</div>
-                <div class="summary-value">{{ show_time }}</div>
+                <div class="summary-value">
+                    {{ show.show_time }}
+                </div>
             </div>
 
             <div class="summary-row">
                 <div class="summary-label">Seats</div>
-                <div class="summary-value">{{ seats }}</div>
+                <div class="summary-value">
+                    {{ selected_seats|join:", " }}
+                </div>
             </div>
 
             <div class="summary-row">
                 <div class="summary-label">Ticket Amount</div>
-                <div class="summary-value">₹{{ amount }}</div>
+                <div class="summary-value">
+                    ₹{{ total_price }}
+                </div>
             </div>
 
-            {% if food_cart %}
-
-                <div class="section-title" style="margin-top:35px;">
-                    Food & Combos
-                </div>
-
-                {% for item in food_cart %}
-
-                    <div class="food-item">
-
-                        <div>
-
-                            <div class="food-name">
-                                {{ item.food_item.name }}
-                            </div>
-
-                            <div class="food-meta">
-                                ₹{{ item.food_item.price }} × {{ item.quantity }}
-                            </div>
-
-                        </div>
-
-                        <div class="summary-value">
-                            ₹{{ item.total_price }}
-                        </div>
-
-                    </div>
-
-                {% endfor %}
-
-                <div class="summary-row">
-                    <div class="summary-label">Food Total</div>
-                    <div class="summary-value">₹{{ food_total }}</div>
-                </div>
-
-            {% endif %}
-
-            {% if offer_discount > 0 %}
-
-                <div class="summary-row">
-                    <div class="summary-label">Discount</div>
-                    <div class="summary-value" style="color:#00ff99;">
-                        - ₹{{ offer_discount }}
-                    </div>
-                </div>
-
-            {% endif %}
-
             <div class="final-box">
-
                 <div class="final-text">
                     Final Payable Amount
                 </div>
 
                 <div class="final-amount">
-                    ₹{{ grand_total }}
+                    ₹{{ total_price }}
                 </div>
-
-            </div>
-
-            <div class="timer-box">
-
-                <div class="timer-title">
-                    Seat Lock Remaining
-                </div>
-
-                <div class="timer" id="countdown">
-                    Calculating...
-                </div>
-
             </div>
 
         </div>
 
         <!-- RIGHT -->
+
         <div class="payment-card">
 
             <div class="section-title">
@@ -313,9 +222,7 @@
 
             <div class="summary-row">
                 <div class="summary-label">Methods</div>
-                <div class="summary-value">
-                    UPI / Cards / Netbanking
-                </div>
+                <div class="summary-value">UPI QR Demo</div>
             </div>
 
             <div class="payment-buttons">
@@ -323,8 +230,9 @@
                 <button
                     id="rzp-button"
                     class="pay-btn online-btn"
+                    type="button"
                 >
-                    Pay ₹{{ grand_total }}
+                    Pay ₹{{ total_price }}
                 </button>
 
                 <form
@@ -338,13 +246,13 @@
                         type="submit"
                         class="pay-btn cash-btn"
                     >
-                        Cash Payment
+                        Pay in Cash
                     </button>
 
                 </form>
 
                 <a
-                    href="{% url 'show_seats' %}?show_id={{ request.session.show_id }}"
+                    href="{% url 'show_seats' %}?show_id={{ show.id }}"
                     style="text-decoration:none;"
                 >
 
@@ -359,12 +267,11 @@
 
             </div>
 
-            <div class="payment-note">
+            <div class="note">
 
-                • Your seats are temporarily locked.<br>
-                • After successful payment, ticket PDF will be generated automatically.<br>
-                • QR ticket verification is enabled.<br>
-                • Razorpay test mode is currently active.
+                • Razorpay UPI demo mode enabled.<br>
+                • Use <strong>success@razorpay</strong> for successful payment.<br>
+                • QR / UPI popup will appear automatically.
 
             </div>
 
@@ -374,121 +281,100 @@
 
 </div>
 
+<!-- Hidden Form -->
+
+<form
+    id="payment-success-form"
+    method="POST"
+    action="{% url 'payment_success' %}"
+    style="display:none;"
+>
+
+    {% csrf_token %}
+
+    <input
+        type="hidden"
+        name="razorpay_payment_id"
+        id="razorpay_payment_id"
+    >
+
+    <input
+        type="hidden"
+        name="razorpay_order_id"
+        id="razorpay_order_id"
+    >
+
+    <input
+        type="hidden"
+        name="razorpay_signature"
+        id="razorpay_signature"
+    >
+
+</form>
+
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 
 <script>
+document.getElementById("rzp-button").onclick = function (e) {
 
-    // -----------------------------
-    // COUNTDOWN
-    // -----------------------------
+    e.preventDefault();
 
-    const expiryText = "{{ lock_expires_at|escapejs }}";
-    const countdown = document.getElementById("countdown");
+    const options = {
 
-    function updateCountdown() {
+        key: "{{ razorpay_key }}",
 
-        if (!expiryText || expiryText === "None") {
-            countdown.innerHTML = "Unavailable";
-            return;
+        amount: "{{ amount }}",
+
+        currency: "{{ currency }}",
+
+        name: "ShowTime",
+
+        description: "{{ show.movie_name|escapejs }} Booking",
+
+        order_id: "{{ order_id }}",
+
+        retry: {
+            enabled: false
+        },
+
+        handler: function (response) {
+
+            document.getElementById(
+                "razorpay_payment_id"
+            ).value = response.razorpay_payment_id;
+
+            document.getElementById(
+                "razorpay_order_id"
+            ).value = response.razorpay_order_id;
+
+            document.getElementById(
+                "razorpay_signature"
+            ).value = response.razorpay_signature;
+
+            document.getElementById(
+                "payment-success-form"
+            ).submit();
+        },
+
+        prefill: {
+
+            email: "{{ request.user.email|escapejs }}"
+
+        },
+
+        theme: {
+
+            color: "#ff4d4d"
+
         }
-
-        const target = new Date(expiryText);
-
-        if (isNaN(target.getTime())) {
-            countdown.innerHTML = "Unavailable";
-            return;
-        }
-
-        const now = new Date();
-
-        let diff = Math.floor(
-            (target.getTime() - now.getTime()) / 1000
-        );
-
-        if (diff <= 0) {
-
-            countdown.innerHTML = "Expired";
-
-            setTimeout(() => {
-                window.location.href = "{% url 'show_seats' %}?show_id={{ request.session.show_id }}";
-            }, 2000);
-
-            return;
-        }
-
-        const mins = Math.floor(diff / 60);
-        const secs = diff % 60;
-
-        countdown.innerHTML =
-            mins + "m " +
-            secs.toString().padStart(2, "0") + "s";
-    }
-
-    updateCountdown();
-
-    setInterval(updateCountdown, 1000);
-
-    // -----------------------------
-    // RAZORPAY
-    // -----------------------------
-
-    document
-        .getElementById("rzp-button")
-        .onclick = function (e) {
-
-        const options = {
-
-            key: "{{ razorpay_key_id }}",
-
-            amount: "{{ razorpay_amount }}",
-
-            currency: "INR",
-
-            name: "ShowTime",
-
-            description: "{{ movie_name|escapejs }}",
-
-            image: "{% static 'images/logo.png' %}",
-
-            order_id: "{{ order_id }}",
-
-            callback_url:
-                "{{ request.scheme }}://{{ request.get_host }}{% url 'payment_success' %}",
-
-            redirect: true,
-
-            prefill: {
-
-                name: "{{ request.user.username|escapejs }}",
-
-                email: "{{ request.user.email|escapejs }}",
-
-            },
-
-            theme: {
-                color: "#ff4d4d"
-            },
-
-            modal: {
-
-                ondismiss: function () {
-
-                    console.log("Payment popup closed");
-
-                }
-
-            }
-
-        };
-
-        const rzp = new Razorpay(options);
-
-        rzp.open();
-
-        e.preventDefault();
 
     };
 
+    const rzp = new Razorpay(options);
+
+    rzp.open();
+
+};
 </script>
 
 {% endblock %}

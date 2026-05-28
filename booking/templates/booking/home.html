@@ -1,638 +1,281 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 
-<div class="home-container">
-
-    <!-- HERO SECTION -->
-
-    <section class="hero-section">
-
-        <div class="hero-overlay"></div>
-
-        <div class="hero-content">
-
-            <span class="hero-tag">
-                🔥 Trending Entertainment Platform
-            </span>
-
-            <h1>
-                Unlimited Movies,
-                Food Combos &
-                AI Experience 🎬
-            </h1>
-
-            <p>
-                Discover trending movies, smart recommendations,
-                voice search, premium food combos and
-                Netflix-style booking experience.
-            </p>
-
-            <div class="hero-buttons">
-
-                <a
-                    href="/movies/"
-                    class="hero-btn primary-btn"
-                >
-                    Browse Movies
-                </a>
-
-                <a
-                    href="/food-offers/"
-                    class="hero-btn secondary-btn"
-                >
-                    🍔 Food Offers
-                </a>
-
-            </div>
-
-        </div>
-
-    </section>
-
-    <!-- TRENDING MOVIES -->
-
-    {% if trending_movies %}
-
-    <section class="section-block">
-
-        <div class="section-header">
-
-            <h2>
-                🔥 Trending Movies
-            </h2>
-
-        </div>
-
-        <div class="movie-row">
-
-            {% for movie in trending_movies %}
-
-            <div class="movie-card">
-
-                <a href="/movie/{{ movie.id }}/">
-
-                    <div class="poster-wrapper">
-
-                        {% if movie.poster_path %}
-
-                        <img
-                            class="poster-image"
-                            src="https://image.tmdb.org/t/p/w500{{ movie.poster_path }}"
-                            alt="{{ movie.title }}"
-                        >
-
-                        {% else %}
-
-                        <div class="no-poster">
-                            No Poster
-                        </div>
-
-                        {% endif %}
-
-                        <div class="hover-overlay">
-
-                            <div class="hover-content">
-
-                                <h3>
-                                    {{ movie.title }}
-                                </h3>
-
-                                <p>
-                                    ⭐ {{ movie.rating|floatformat:1 }}
-                                </p>
-
-                                <span>
-                                    {{ movie.genre|default:"Movie" }}
-                                </span>
-
-                            </div>
-
-                        </div>
-
-                    </div>
-
-                </a>
-
-                <div class="movie-card-info">
-
-                    <h3>
-                        {{ movie.title }}
-                    </h3>
-
-                    <p>
-                        ⭐ {{ movie.rating|floatformat:1 }}
-                    </p>
-
-                    <div class="card-actions">
-
-                        <a
-                            href="/movie/{{ movie.id }}/"
-                            class="watch-btn"
-                        >
-                            Watch
-                        </a>
-
-                        {% if user.is_authenticated %}
-
-                            {% if movie.id in wishlist_movie_ids %}
-
-                            <form
-                                action="{% url 'remove_from_wishlist' movie.id %}"
-                                method="POST"
-                            >
-
-                                {% csrf_token %}
-
-                                <button
-                                    type="submit"
-                                    class="wishlist-btn active-heart"
-                                >
-                                    ❤️
-                                </button>
-
-                            </form>
-
-                            {% else %}
-
-                            <form
-                                action="{% url 'add_to_wishlist' movie.id %}"
-                                method="POST"
-                            >
-
-                                {% csrf_token %}
-
-                                <button
-                                    type="submit"
-                                    class="wishlist-btn"
-                                >
-                                    🤍
-                                </button>
-
-                            </form>
-
-                            {% endif %}
-
-                        {% endif %}
-
-                    </div>
-
-                </div>
-
-            </div>
-
-            {% endfor %}
-
-        </div>
-
-    </section>
-
-    {% endif %}
-
-    <!-- FOOD SECTION -->
-
-    <section class="section-block">
-
-        <div class="section-header">
-
-            <h2>
-                🍿 Food & Combo Offers
-            </h2>
-
-        </div>
-
-        <div class="food-grid">
-
-            <!-- FOOD CARD -->
-
-            <div class="food-card">
-
-                <img
-                    src="https://images.unsplash.com/photo-1578849278619-e73505e9610f?q=80&w=1200&auto=format&fit=crop"
-                    alt="Popcorn Combo"
-                >
-
-                <div class="food-info">
-
-                    <h3>
-                        Popcorn Combo
-                    </h3>
-
-                    <p>
-                        Large popcorn + 2 cold drinks
-                    </p>
-
-                    <div class="price-row">
-
-                        <span class="old-price">
-                            ₹599
-                        </span>
-
-                        <span class="offer-price">
-                            ₹399
-                        </span>
-
-                    </div>
-
-                    <a
-                        href="/food-offers/"
-                        class="food-btn"
-                    >
-                        Grab Offer
-                    </a>
-
-                </div>
-
-            </div>
-
-            <!-- FOOD CARD -->
-
-            <div class="food-card">
-
-                <img
-                    src="https://images.unsplash.com/photo-1568901346375-23c9450c58cd?q=80&w=1200&auto=format&fit=crop"
-                    alt="Burger Combo"
-                >
-
-                <div class="food-info">
-
-                    <h3>
-                        Burger Combo
-                    </h3>
-
-                    <p>
-                        Burger + Fries + Coke
-                    </p>
-
-                    <div class="price-row">
-
-                        <span class="old-price">
-                            ₹699
-                        </span>
-
-                        <span class="offer-price">
-                            ₹499
-                        </span>
-
-                    </div>
-
-                    <a
-                        href="/food-offers/"
-                        class="food-btn"
-                    >
-                        Grab Offer
-                    </a>
-
-                </div>
-
-            </div>
-
-            <!-- FOOD CARD -->
-
-            <div class="food-card">
-
-                <img
-                    src="https://images.unsplash.com/photo-1513104890138-7c749659a591?q=80&w=1200&auto=format&fit=crop"
-                    alt="Pizza Combo"
-                >
-
-                <div class="food-info">
-
-                    <h3>
-                        Pizza Combo
-                    </h3>
-
-                    <p>
-                        Medium Pizza + Pepsi
-                    </p>
-
-                    <div class="price-row">
-
-                        <span class="old-price">
-                            ₹899
-                        </span>
-
-                        <span class="offer-price">
-                            ₹699
-                        </span>
-
-                    </div>
-
-                    <a
-                        href="/food-offers/"
-                        class="food-btn"
-                    >
-                        Grab Offer
-                    </a>
-
-                </div>
-
-            </div>
-
-        </div>
-
-    </section>
-
-    <!-- OFFERS SECTION -->
-
-    <section class="offers-section">
-
-        <div class="offer-banner">
-
-            <div class="offer-content">
-
-                <h2>
-                    🎟 Movie + Food Combo Offer
-                </h2>
-
-                <p>
-                    Book movie tickets and get up to
-                    40% OFF on food combos.
-                </p>
-
-                <a
-                    href="/food-offers/"
-                    class="offer-btn"
-                >
-                    Explore Deals
-                </a>
-
-            </div>
-
-        </div>
-
-    </section>
-
-</div>
-
 <style>
 
-.home-container{
-    background:#0b0b0b;
-    min-height:100vh;
+body{
+    background:#0f0f0f;
+    color:white;
+    font-family:Arial,sans-serif;
 }
 
 /* HERO */
 
 .hero-section{
-    position:relative;
-    min-height:88vh;
 
-    display:flex;
+    width:90%;
+    max-width:1250px;
+
+    margin:40px auto;
+
+    display:grid;
+
+    grid-template-columns:1.2fr .8fr;
+
+    gap:30px;
+
     align-items:center;
-
-    padding:0 7%;
 
     background:
         linear-gradient(
-            rgba(0,0,0,.72),
-            rgba(0,0,0,.92)
-        ),
+            135deg,
+            #181818,
+            #0f0f0f
+        );
 
-        url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?q=80&w=2070&auto=format&fit=crop');
+    padding:45px;
 
-    background-size:cover;
-    background-position:center;
+    border-radius:30px;
+
+    border:
+        1px solid rgba(255,255,255,.06);
+
 }
 
-.hero-overlay{
-    position:absolute;
-    inset:0;
-}
+.hero-left h1{
 
-.hero-content{
-    position:relative;
-    z-index:2;
-    max-width:760px;
-}
+    font-size:58px;
 
-.hero-tag{
-    display:inline-block;
-
-    background:#ff4d4d;
-
-    padding:10px 18px;
-
-    border-radius:999px;
-
-    font-size:14px;
-
-    font-weight:700;
-
-    margin-bottom:22px;
-}
-
-.hero-content h1{
-    font-size:72px;
     line-height:1.1;
-    margin-bottom:24px;
+
+    margin-bottom:18px;
+
 }
 
-.hero-content p{
-    color:#d0d0d0;
+.hero-left p{
 
-    font-size:18px;
+    color:#cfcfcf;
 
     line-height:1.8;
 
-    margin-bottom:36px;
+    font-size:16px;
+
+    margin-bottom:30px;
+
 }
 
 .hero-buttons{
+
     display:flex;
-    gap:18px;
+
+    gap:16px;
+
+    flex-wrap:wrap;
+
 }
 
 .hero-btn{
-    padding:16px 30px;
+
+    padding:14px 24px;
 
     border-radius:14px;
 
-    font-weight:700;
+    text-decoration:none;
+
+    font-weight:bold;
 
     transition:.3s;
+
 }
 
 .primary-btn{
+
     background:#ff4d4d;
+
     color:white;
+
+}
+
+.primary-btn:hover{
+
+    background:#ff1f1f;
+
 }
 
 .secondary-btn{
-    background:#1d1d1d;
+
+    background:#1f1f1f;
+
     color:white;
+
+    border:
+        1px solid rgba(255,255,255,.08);
+
 }
 
-.hero-btn:hover{
-    transform:translateY(-4px);
+.secondary-btn:hover{
+
+    background:#2b2b2b;
+
+}
+
+.hero-right{
+
+    background:
+        radial-gradient(
+            circle at top,
+            rgba(255,77,77,.3),
+            transparent 40%
+        ),
+        linear-gradient(
+            135deg,
+            #222,
+            #111
+        );
+
+    min-height:320px;
+
+    border-radius:24px;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    text-align:center;
+
+    padding:25px;
+
+}
+
+.hero-right h2{
+
+    font-size:34px;
+
+    margin-bottom:10px;
+
+}
+
+.hero-right p{
+
+    color:#ccc;
+
+    line-height:1.7;
+
 }
 
 /* SECTION */
 
-.section-block{
-    padding:60px 5%;
+.section{
+
+    width:90%;
+    max-width:1250px;
+
+    margin:70px auto;
+
 }
 
 .section-header{
-    margin-bottom:24px;
+
+    margin-bottom:30px;
+
 }
 
 .section-header h2{
-    font-size:34px;
+
+    font-size:38px;
+
+    margin-bottom:10px;
+
+}
+
+.section-header p{
+
+    color:#bbb;
+
+    line-height:1.7;
+
+}
+
+/* CATEGORY GRID */
+
+.category-grid{
+
+    display:grid;
+
+    grid-template-columns:
+        repeat(auto-fit,minmax(250px,1fr));
+
+    gap:22px;
+
+}
+
+.category-card{
+
+    background:#181818;
+
+    border-radius:22px;
+
+    padding:24px;
+
+    text-decoration:none;
+
+    color:white;
+
+    transition:.3s;
+
+    border:
+        1px solid rgba(255,255,255,.06);
+
+}
+
+.category-card:hover{
+
+    transform:
+        translateY(-5px);
+
+    border-color:
+        rgba(255,77,77,.35);
+
+    box-shadow:
+        0 10px 30px rgba(0,0,0,.35);
+
+}
+
+.category-card h3{
+
+    font-size:24px;
+
+    margin-bottom:12px;
+
+}
+
+.category-card p{
+
+    color:#bbb;
+
+    line-height:1.6;
+
 }
 
 /* MOVIES */
 
-.movie-row{
-    display:flex;
-    gap:24px;
-    overflow-x:auto;
-    padding-bottom:12px;
-}
+.movie-grid{
 
-.movie-card{
-    min-width:240px;
-
-    background:#181818;
-
-    border-radius:20px;
-
-    overflow:hidden;
-
-    transition:.3s;
-}
-
-.movie-card:hover{
-    transform:translateY(-10px);
-}
-
-.poster-wrapper{
-    position:relative;
-    overflow:hidden;
-}
-
-.poster-image{
-    width:100%;
-    height:350px;
-    object-fit:cover;
-}
-
-.no-poster{
-    width:100%;
-    height:350px;
-
-    background:#1d1d1d;
-
-    display:flex;
-    align-items:center;
-    justify-content:center;
-
-    color:#777;
-}
-
-.hover-overlay{
-    position:absolute;
-    inset:0;
-
-    background:
-        linear-gradient(
-            to top,
-            rgba(0,0,0,.9),
-            transparent
-        );
-
-    opacity:0;
-
-    transition:.3s;
-
-    display:flex;
-    align-items:flex-end;
-
-    padding:20px;
-}
-
-.movie-card:hover .hover-overlay{
-    opacity:1;
-}
-
-.hover-content h3{
-    margin-bottom:8px;
-}
-
-.hover-content p{
-    margin-bottom:8px;
-}
-
-.hover-content span{
-    background:#ff4d4d;
-
-    padding:6px 12px;
-
-    border-radius:999px;
-
-    font-size:12px;
-}
-
-.movie-card-info{
-    padding:18px;
-}
-
-.movie-card-info h3{
-    margin-bottom:10px;
-}
-
-.movie-card-info p{
-    color:#cfcfcf;
-}
-
-.card-actions{
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-
-    margin-top:18px;
-}
-
-.watch-btn{
-    background:#ff4d4d;
-    color:white;
-
-    padding:10px 16px;
-
-    border-radius:10px;
-}
-
-.wishlist-btn{
-    width:42px;
-    height:42px;
-
-    border:none;
-
-    border-radius:50%;
-
-    background:#232323;
-
-    color:white;
-
-    cursor:pointer;
-}
-
-.active-heart{
-    background:#ff4d4d;
-}
-
-/* FOOD */
-
-.food-grid{
     display:grid;
 
     grid-template-columns:
-        repeat(auto-fit,minmax(280px,1fr));
+        repeat(auto-fit,minmax(220px,1fr));
 
-    gap:26px;
+    gap:22px;
+
 }
 
-.food-card{
+.movie-card{
+
     background:#181818;
 
     border-radius:22px;
@@ -640,140 +283,524 @@
     overflow:hidden;
 
     transition:.3s;
+
+    border:
+        1px solid rgba(255,255,255,.06);
+
 }
 
-.food-card:hover{
-    transform:translateY(-10px);
+.movie-card:hover{
+
+    transform:
+        translateY(-5px);
+
+    box-shadow:
+        0 10px 30px rgba(0,0,0,.35);
+
 }
 
-.food-card img{
+.movie-poster{
+
     width:100%;
-    height:260px;
+
+    height:320px;
+
+    overflow:hidden;
+
+    background:#222;
+
+}
+
+.movie-poster img{
+
+    width:100%;
+
+    height:100%;
+
     object-fit:cover;
+
 }
 
-.food-info{
-    padding:22px;
+.movie-info{
+
+    padding:18px;
+
 }
 
-.food-info h3{
-    margin-bottom:12px;
+.movie-info h3{
+
+    font-size:20px;
+
+    margin-bottom:8px;
+
 }
 
-.food-info p{
-    color:#c9c9c9;
-    margin-bottom:16px;
+.movie-info p{
+
+    color:#bbb;
+
+    font-size:14px;
+
+    line-height:1.6;
+
 }
 
-.price-row{
-    display:flex;
-    gap:12px;
-    align-items:center;
+.movie-link{
 
-    margin-bottom:18px;
-}
-
-.old-price{
-    text-decoration:line-through;
-    color:#999;
-}
-
-.offer-price{
-    color:#ff4d4d;
-    font-size:24px;
-    font-weight:700;
-}
-
-.food-btn{
     display:inline-block;
 
-    background:#ff4d4d;
+    margin-top:14px;
 
-    padding:12px 18px;
+    color:#ff4d4d;
 
-    border-radius:12px;
+    text-decoration:none;
 
-    font-weight:700;
+    font-weight:bold;
+
 }
 
-/* OFFER */
+/* EVENTS */
 
-.offers-section{
-    padding:20px 5% 80px;
+.events-grid{
+
+    display:grid;
+
+    grid-template-columns:
+        repeat(auto-fit,minmax(320px,1fr));
+
+    gap:25px;
+
 }
 
-.offer-banner{
+.event-home-card{
+
+    position:relative;
+
+    height:240px;
+
+    border-radius:24px;
+
+    overflow:hidden;
+
     background:
         linear-gradient(
             135deg,
             #ff4d4d,
-            #b30000
+            #661111
         );
 
-    border-radius:28px;
+    text-decoration:none;
 
-    padding:60px;
+    transition:.3s;
+
+    box-shadow:
+        0 10px 30px rgba(0,0,0,.35);
+
+}
+
+.music-card{
+
+    background:
+        linear-gradient(
+            135deg,
+            #6a11cb,
+            #2575fc
+        );
+
+}
+
+.event-home-card:hover{
+
+    transform:
+        translateY(-6px)
+        scale(1.01);
+
+}
+
+.event-overlay{
+
+    position:absolute;
+
+    inset:0;
+
+    background:
+        linear-gradient(
+            to top,
+            rgba(0,0,0,.72),
+            rgba(0,0,0,.15)
+        );
+
+}
+
+.event-content{
+
+    position:absolute;
+
+    bottom:25px;
+
+    left:25px;
+
+    right:25px;
+
+    z-index:2;
+
+}
+
+.event-content h3{
+
+    color:white;
+
+    font-size:32px;
+
+    margin-bottom:10px;
+
+}
+
+.event-content p{
+
+    color:#eee;
+
+    line-height:1.6;
+
+}
+
+/* FOOTER */
+
+.footer-note{
 
     text-align:center;
-}
 
-.offer-content h2{
-    font-size:42px;
-    margin-bottom:18px;
-}
+    color:#999;
 
-.offer-content p{
-    font-size:18px;
-    margin-bottom:28px;
-}
+    margin:70px 0 30px;
 
-.offer-btn{
-    display:inline-block;
+    font-size:14px;
 
-    background:white;
-    color:black;
-
-    padding:14px 24px;
-
-    border-radius:14px;
-
-    font-weight:700;
 }
 
 /* RESPONSIVE */
 
 @media(max-width:900px){
 
-    .hero-content h1{
-        font-size:50px;
+    .hero-section{
+
+        grid-template-columns:1fr;
+
+        padding:30px;
+
+    }
+
+    .hero-left h1{
+
+        font-size:42px;
+
     }
 
 }
 
-@media(max-width:600px){
+@media(max-width:768px){
 
-    .hero-section{
-        padding:0 20px;
-    }
+    .section-header h2{
 
-    .hero-content h1{
-        font-size:38px;
-    }
-
-    .movie-card{
-        min-width:210px;
-    }
-
-    .offer-banner{
-        padding:40px 20px;
-    }
-
-    .offer-content h2{
         font-size:30px;
+
+    }
+
+    .event-content h3{
+
+        font-size:28px;
+
     }
 
 }
 
 </style>
+
+<!-- HERO -->
+
+<div class="hero-section">
+
+    <div class="hero-left">
+
+        <h1>
+            Book Movies & Live Events Effortlessly 🎟
+        </h1>
+
+        <p>
+            Explore the latest movies, comedy nights,
+            music concerts, festivals, and unforgettable
+            live experiences — all in one place.
+        </p>
+
+        <div class="hero-buttons">
+
+            <a
+                href="{% url 'movies' %}"
+                class="hero-btn primary-btn"
+            >
+                Browse Movies
+            </a>
+
+            <a
+                href="{% url 'events' %}"
+                class="hero-btn secondary-btn"
+            >
+                Explore Events
+            </a>
+
+        </div>
+
+    </div>
+
+    <div class="hero-right">
+
+        <div>
+
+            <h2>
+                Welcome To ShowTime
+            </h2>
+
+            <p>
+                Your ultimate entertainment booking platform
+                for movies and live events.
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- CATEGORY -->
+
+<div class="section">
+
+    <div class="section-header">
+
+        <h2>
+            Explore Categories
+        </h2>
+
+        <p>
+            Choose from movies, comedy shows,
+            concerts, and more.
+        </p>
+
+    </div>
+
+    <div class="category-grid">
+
+        <a
+            href="{% url 'movies' %}"
+            class="category-card"
+        >
+
+            <h3>Movies</h3>
+
+            <p>
+                Latest movies, seat booking,
+                and show timings.
+            </p>
+
+        </a>
+
+        <a
+            href="{% url 'events' %}"
+            class="category-card"
+        >
+
+            <h3>Events</h3>
+
+            <p>
+                Comedy nights, music festivals,
+                and live performances.
+            </p>
+
+        </a>
+
+        <a
+            href="{% url 'wishlist' %}"
+            class="category-card"
+        >
+
+            <h3>Wishlist</h3>
+
+            <p>
+                Save movies and events
+                to watch later.
+            </p>
+
+        </a>
+
+        <a
+            href="{% url 'my_bookings' %}"
+            class="category-card"
+        >
+
+            <h3>My Bookings</h3>
+
+            <p>
+                View your booked tickets
+                and booking history.
+            </p>
+
+        </a>
+
+    </div>
+
+</div>
+
+<!-- MOVIES -->
+
+<div class="section">
+
+    <div class="section-header">
+
+        <h2>
+            Popular Movies 🍿
+        </h2>
+
+        <p>
+            Browse currently trending movies.
+        </p>
+
+    </div>
+
+    <div class="movie-grid">
+
+        {% for movie in movies %}
+
+            <div class="movie-card">
+
+                <div class="movie-poster">
+
+                    {% if movie.poster_path %}
+
+                        <img
+                            src="{{ movie.poster_path }}"
+                            alt="{{ movie.title }}"
+                        >
+
+                    {% else %}
+
+                        <img
+                            src="{% static 'images/default-poster.jpg' %}"
+                            alt="{{ movie.title }}"
+                        >
+
+                    {% endif %}
+
+                </div>
+
+                <div class="movie-info">
+
+                    <h3>
+                        {{ movie.title }}
+                    </h3>
+
+                    <p>
+                        {{ movie.genre }}
+                    </p>
+
+                    <a
+                        href="{% url 'movie_detail' movie.id %}"
+                        class="movie-link"
+                    >
+                        View Details
+                    </a>
+
+                </div>
+
+            </div>
+
+        {% empty %}
+
+            <p>
+                No movies available.
+            </p>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+<!-- EVENTS -->
+
+<div class="section">
+
+    <div class="section-header">
+
+        <h2>
+            Live Events 🎤
+        </h2>
+
+        <p>
+            Discover comedy nights, concerts,
+            club gigs, and live entertainment.
+        </p>
+
+    </div>
+
+    <div class="events-grid">
+
+        <!-- COMEDY -->
+
+        <a
+            href="{% url 'events' %}"
+            class="event-home-card"
+        >
+
+            <div class="event-overlay"></div>
+
+            <div class="event-content">
+
+                <h3>
+                    Comedy Shows
+                </h3>
+
+                <p>
+                    Stand-up events, roast battles,
+                    improv, sketch comedy,
+                    and open mic nights.
+                </p>
+
+            </div>
+
+        </a>
+
+        <!-- MUSIC -->
+
+        <a
+            href="{% url 'events' %}"
+            class="event-home-card music-card"
+        >
+
+            <div class="event-overlay"></div>
+
+            <div class="event-content">
+
+                <h3>
+                    Music Shows
+                </h3>
+
+                <p>
+                    Concerts, music festivals,
+                    DJ nights, and club gigs.
+                </p>
+
+            </div>
+
+        </a>
+
+    </div>
+
+</div>
+
+<div class="footer-note">
+
+    Made with ❤️ for movie lovers and event fans.
+
+</div>
 
 {% endblock %}
