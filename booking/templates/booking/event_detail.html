@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    body{
+        background:#0f0f0f;
+        color:white;
+        font-family:Arial,sans-serif;
+    }
+
+    .detail-container{
+        width:90%;
+        max-width:1150px;
+        margin:40px auto;
+        background:#181818;
+        border-radius:28px;
+        padding:35px;
+        box-shadow:0 10px 30px rgba(0,0,0,.35);
+    }
+
+    .back-link{
+        display:inline-block;
+        margin-bottom:25px;
+        text-decoration:none;
+        color:#ff4d4d;
+        font-weight:bold;
+    }
+
+    .detail-grid{
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:30px;
+        align-items:center;
+    }
+
+    .poster-box{
+        min-height:480px;
+        border-radius:24px;
+        overflow:hidden;
+        box-shadow:0 10px 30px rgba(0,0,0,.25);
+        background:linear-gradient(135deg, #ff4d4d, #661111);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        text-align:center;
+        padding:0;
+    }
+
+    .poster-box.music{
+        background:linear-gradient(135deg, #6a11cb, #2575fc);
+    }
+
+    .poster-box img{
+        width:100%;
+        height:100%;
+        object-fit:cover;
+        display:block;
+    }
+
+    .poster-placeholder{
+        padding:30px;
+        color:#fff;
+    }
+
+    .poster-placeholder h2{
+        font-size:42px;
+        line-height:1.1;
+        margin-bottom:12px;
+    }
+
+    .poster-placeholder p{
+        color:#eee;
+        line-height:1.7;
+        font-size:16px;
+    }
+
+    .info-box h1{
+        font-size:40px;
+        margin-bottom:12px;
+    }
+
+    .tag{
+        display:inline-block;
+        padding:8px 14px;
+        border-radius:30px;
+        background:#1f1f1f;
+        color:#ff4d4d;
+        border:1px solid rgba(255,77,77,.25);
+        margin-bottom:16px;
+        font-size:13px;
+        font-weight:bold;
+    }
+
+    .info-box p{
+        color:#cfcfcf;
+        line-height:1.7;
+        margin-bottom:18px;
+    }
+
+    .info-row{
+        display:flex;
+        justify-content:space-between;
+        gap:15px;
+        padding:14px 0;
+        border-bottom:1px solid rgba(255,255,255,0.08);
+        color:#ddd;
+    }
+
+    .highlight-list{
+        margin:20px 0 0;
+        padding-left:18px;
+        color:#ddd;
+        line-height:1.8;
+    }
+
+    .book-btn{
+        display:inline-block;
+        margin-top:26px;
+        padding:14px 22px;
+        border-radius:14px;
+        background:#ff4d4d;
+        color:white;
+        text-decoration:none;
+        font-weight:bold;
+        transition:.25s;
+    }
+
+    .book-btn:hover{
+        background:#ff2d2d;
+    }
+
+    .secondary-btn{
+        display:inline-block;
+        margin-top:12px;
+        padding:14px 22px;
+        border-radius:14px;
+        background:#1f1f1f;
+        color:white;
+        text-decoration:none;
+        font-weight:bold;
+        border:1px solid rgba(255,255,255,0.08);
+        transition:.25s;
+    }
+
+    .secondary-btn:hover{
+        background:#2a2a2a;
+    }
+
+    .not-found{
+        text-align:center;
+        padding:60px 20px;
+    }
+
+    .not-found h1{
+        font-size:36px;
+        margin-bottom:12px;
+    }
+
+    @media(max-width:900px){
+        .detail-grid{
+            grid-template-columns:1fr;
+        }
+
+        .poster-box{
+            min-height:260px;
+        }
+
+        .info-box h1{
+            font-size:32px;
+        }
+    }
+</style>
+
+<div class="detail-container">
+
+    <a href="{% url 'events' %}" class="back-link">
+        ← Back to Events
+    </a>
+
+    {% if event %}
+
+        <div class="detail-grid">
+
+            <div class="poster-box {% if event.category == 'Music' %}music{% endif %}">
+                {% if event.poster_path %}
+                    <img src="{{ event.poster_path }}" alt="{{ event.title }}">
+                {% else %}
+                    <div class="poster-placeholder">
+                        <h2>{{ event.title }}</h2>
+                        <p>{{ event.category }} Event</p>
+                        <p>{{ event.venue|default:"Venue TBA" }}</p>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="info-box">
+
+                <div class="tag">{{ event.category }}</div>
+
+                <h1>{{ event.title }}</h1>
+
+                <p>
+                    {{ event.description }}
+                </p>
+
+                <div class="info-row">
+                    <span>Date</span>
+                    <span>{{ event.date|default:"Date TBA" }}</span>
+                </div>
+
+                <div class="info-row">
+                    <span>Time</span>
+                    <span>{{ event.time|default:"Time TBA" }}</span>
+                </div>
+
+                <div class="info-row">
+                    <span>Venue</span>
+                    <span>{{ event.venue|default:"Venue TBA" }}</span>
+                </div>
+
+                <div class="info-row">
+                    <span>Price</span>
+                    <span>₹{{ event.price }}</span>
+                </div>
+
+                <a href="{% url 'events' %}" class="book-btn">
+                    Explore More Events
+                </a>
+
+            </div>
+
+        </div>
+
+    {% else %}
+
+        <div class="not-found">
+            <h1>Event Not Found</h1>
+            <p>The event you selected does not exist.</p>
+        </div>
+
+    {% endif %}
+
+</div>
+
+{% endblock %}

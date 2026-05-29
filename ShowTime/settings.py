@@ -2,6 +2,8 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
+load_dotenv()
+
 # -------------------------
 # BASE DIRECTORY
 # -------------------------
@@ -182,3 +184,7 @@ SITE_URL = os.getenv("SITE_URL", "http://127.0.0.1:8000")
 SESSION_ENGINE = "django.contrib.sessions.backends.db"
 SESSION_COOKIE_AGE = 86400
 SESSION_SAVE_EVERY_REQUEST = True
+
+
+
+TICKETMASTER_API_KEY = os.getenv("TICKETMASTER_API_KEY")

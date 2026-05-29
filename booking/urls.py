@@ -2,7 +2,8 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-
+    
+     # ================= EVENTS =================
     path("events/", views.events, name="events"),
     # ================= HOME =================
     path("", views.home, name="home"),
@@ -152,5 +153,8 @@ urlpatterns = [
         name="update_food_qty"
     ),
 
-    path("events/", views.events, name="events"),
+
+
+    path("events/<slug:slug>/", views.event_detail, name="event_detail"),
+
 ]

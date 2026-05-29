@@ -51,6 +51,12 @@ import razorpay
 from django.db import transaction
 from django.shortcuts import render, get_object_or_404
 from django.shortcuts import render
+from .models import Event
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
+
+
 
 
 
@@ -386,43 +392,69 @@ def get_trending_movies():
     trending_scores = {}
     movies = Movie.objects.filter(is_active=True)
 
+    tmdb_image_base_url = getattr(
+        settings,
+        "TMDB_IMAGE_BASE_URL",
+        "https://image.tmdb.org/t/p/w500"
+    )
+
     for movie in movies:
         score = 0.0
         rating = float(movie.rating or 0)
         votes = int(movie.vote_count or 0)
 
+        # Base score from rating and popularity
         score += rating * 10
         score += min(votes / 100, 25)
 
+        # Recent bookings boost
         recent_bookings = Booking.objects.filter(
             movie_name=movie.title,
             booked_at__gte=recent_days,
         ).count()
         score += recent_bookings * 15
 
+        # Release date boost / recency boost
         try:
             if movie.release_date:
                 if isinstance(movie.release_date, str):
                     release_date = datetime.fromisoformat(movie.release_date).date()
                 else:
                     release_date = movie.release_date
+
                 days_old = (timezone.localdate() - release_date).days
                 if days_old <= 30:
-                    score += 25
+                    score += 20
                 elif days_old <= 90:
                     score += 10
         except Exception:
             pass
 
-        trending_scores[movie.id] = score
+        # Poster URL fix
+        poster_path = movie.poster_path or ""
+        if poster_path and not poster_path.startswith("http"):
+            poster_path = f"{tmdb_image_base_url}{poster_path}"
 
-    trending_movies = sorted(
-        movies,
-        key=lambda m: trending_scores.get(m.id, 0),
-        reverse=True,
+        trending_scores[movie.id] = {
+            "id": movie.id,
+            "title": movie.title,
+            "overview": movie.overview or "",
+            "poster_path": poster_path,
+            "genre": movie.genre or "",
+            "rating": movie.rating or 0,
+            "vote_count": movie.vote_count or 0,
+            "release_date": movie.release_date,
+            "budget_level": movie.budget_level or "medium",
+            "score": score,
+        }
+
+    sorted_movies = sorted(
+        trending_scores.values(),
+        key=lambda x: x["score"],
+        reverse=True
     )
-    return trending_movies[:10]
 
+    return sorted_movies[:10]
 
 def get_continue_watching(user):
     if not user.is_authenticated:
@@ -480,7 +512,7 @@ def get_wishlist_movie_ids(request):
 # SIGNUP / OTP / AUTH
 # ---------------------------
 
-def signup_view(request):
+def signup_view(request): #This handles new user signup. It checks username, email, and password, then validates them. If everything is fine, it creates the user, sends an OTP to email, saves the OTP in session, and sends the user to the OTP verification page
     if request.method == "POST":
         username = request.POST.get("username")
         email = request.POST.get("email")
@@ -522,7 +554,7 @@ def signup_view(request):
     return render(request, "booking/signup.html")
 
 
-def signup_otp(request):
+def signup_otp(request): #This checks the OTP entered during signup. If it matches the saved OTP, the user is logged in and redirected to /movies/
     if request.method == "POST":
         entered_otp = request.POST.get("otp")
         saved_otp = request.session.get("signup_otp")
@@ -540,7 +572,7 @@ def signup_otp(request):
     return render(request, "booking/verify_signup_otp.html")
 
 
-def otp_login(request):
+def otp_login(request): #This is for login with email + OTP. It checks whether the email exists, sends an OTP to that email, stores OTP and user id in session, and redirects to the OTP verification page.
     if request.method == "POST":
         email = request.POST.get("email")
         user = User.objects.filter(email=email).first()
@@ -600,7 +632,7 @@ def logout_view(request):
 # HOME / MOVIES / DETAILS
 # ---------------------------
 
-def home(request):
+def home(request): #Shows the home page. It loads trending movies, wishlist items, continue-watching items, and “because you watched” suggestions.
     trending_movies = get_trending_movies()
     wishlist_movie_ids = get_wishlist_movie_ids(request)
 
@@ -615,7 +647,7 @@ def home(request):
         request,
         "booking/home.html",
         {
-            "trending_movies": trending_movies,
+            "movies": trending_movies,
             "continue_watching": continue_watching,
             "because_sections": because_sections,
             "wishlist_movie_ids": wishlist_movie_ids,
@@ -623,7 +655,7 @@ def home(request):
     )
 
 
-def movies(request):
+def movies(request): #Shows the movies listing page. It can search movies by title/genre and filter by genre. It also builds the genre list for filters     
     query = request.GET.get("q", "").strip()
     selected_genre = request.GET.get("genre", "").strip()
 
@@ -657,8 +689,8 @@ def movies(request):
     )
 
 
-@login_required
-def movie_detail(request, movie_id):
+@login_required 
+def movie_detail(request, movie_id): #Shows the full details of one movie. It gets the movie by ID, finds a trailer from TMDb or YouTube, and sends all data to the detail page.
     movie = get_object_or_404(Movie, id=movie_id, is_active=True)
 
     trailer_key = None
@@ -711,7 +743,7 @@ def movie_detail(request, movie_id):
 # ---------------------------
 
 @login_required
-def show_timings(request):
+def show_timings(request): #This shows all available show times for a selected movie. If no shows exist, it creates default timings like 10 AM, 2 PM, and 6 PM, then makes seats for them.
     movie_id = request.GET.get("movie_id")
     if not movie_id:
         return redirect("/movies/")
@@ -737,7 +769,7 @@ def show_timings(request):
 
 
 @login_required
-def show_seats(request):
+def show_seats(request): #This shows all seats for one selected show. It also stores show details in session so the booking flow can continue.
     show_id = request.GET.get("show_id")
     if not show_id:
         return redirect("/movies/")
@@ -765,7 +797,7 @@ def show_seats(request):
 
 
 @login_required
-def book_seat(request, seat_id):
+def book_seat(request, seat_id): #This books one seat safely using transaction.atomic(). It first checks whether the seat is already booked or locked.
     with transaction.atomic():
         seat = Seat.objects.select_for_update().get(id=seat_id)
         if seat.is_booked:
@@ -779,7 +811,7 @@ def book_seat(request, seat_id):
 
 
 @login_required
-def book_multiple(request):
+def book_multiple(request): #Why used: this is the main seat-booking + payment step.
     if request.method != "POST":
         return HttpResponse("Invalid request", status=405)
 
@@ -857,7 +889,7 @@ def book_multiple(request):
 # ---------------------------
 
 @login_required
-def payment_view(request):
+def payment_view(request): #Why used: to collect the total amount before payment.
     release_expired_locks()
 
     seat_ids = request.session.get("booked_seats", [])
@@ -937,7 +969,7 @@ def payment_view(request):
 # ---------------------------
 
 @csrf_exempt
-def payment_success(request):
+def payment_success(request): #to save the booking only after payment is successful.
     print("SESSION:", dict(request.session))
 
     seats = request.session.get("selected_seats")
@@ -1001,7 +1033,7 @@ def payment_success(request):
 # ---------------------------
 
 @login_required
-def initiate_payment(request, show_id):
+def initiate_payment(request, show_id): #to begin the payment process after seat selection.
     show = get_object_or_404(Show, id=show_id)
 
     if request.method == "POST":
@@ -1053,7 +1085,7 @@ def initiate_payment(request, show_id):
 # ---------------------------
 
 @login_required
-def my_bookings(request):
+def my_bookings(request): #to let users see their past tickets
     if BOOKING_HAS_USER_FIELD:
         bookings = Booking.objects.filter(user=request.user).order_by("-booked_at")
     else:
@@ -1063,7 +1095,7 @@ def my_bookings(request):
 
 
 @login_required
-def download_ticket_pdf(request, booking_id):
+def download_ticket_pdf(request, booking_id): #to give users a printable ticket.
     booking = get_object_or_404(Booking, id=booking_id)
 
     if BOOKING_HAS_USER_FIELD and not request.user.is_staff and booking.user_id != request.user.id:
@@ -1078,7 +1110,7 @@ def download_ticket_pdf(request, booking_id):
 # ---------------------------
 
 @staff_member_required
-def admin_dashboard(request):
+def admin_dashboard(request): #to give the admin a quick overview.
     total_movies = Movie.objects.filter(is_active=True).count()
     total_shows = Show.objects.count()
     total_bookings = Booking.objects.filter(payment_status=True).count()
@@ -1099,13 +1131,13 @@ def admin_dashboard(request):
 
 
 @staff_member_required
-def admin_movies(request):
+def admin_movies(request): #to manage movies 
     movies = Movie.objects.all().order_by("-id")
     return render(request, "booking/admin_movies.html", {"movies": movies})
 
 
 @staff_member_required
-def admin_add_movie(request):
+def admin_add_movie(request): #to add movies into ShowTime.
     if request.method == "POST":
         title = request.POST.get("title")
         overview = request.POST.get("overview")
@@ -1138,21 +1170,21 @@ def admin_add_movie(request):
 
 
 @staff_member_required
-def admin_delete_movie(request, movie_id):
+def admin_delete_movie(request, movie_id): #to remove movies no longer needed
     movie = get_object_or_404(Movie, id=movie_id)
     movie.delete()
     return redirect("/admin-movies/")
 
 
 @staff_member_required
-def admin_shows(request):
+def admin_shows(request): #to manage show timings.
     shows = Show.objects.all().order_by("-id")
     movies = Movie.objects.filter(is_active=True).order_by("title")
     return render(request, "booking/admin_shows.html", {"shows": shows, "movies": movies})
 
 
 @staff_member_required
-def admin_add_show(request):
+def admin_add_show(request): #to add new show slots.
     movies = Movie.objects.filter(is_active=True).order_by("title")
 
     if request.method == "POST":
@@ -1167,14 +1199,14 @@ def admin_add_show(request):
 
 
 @staff_member_required
-def admin_delete_show(request, show_id):
+def admin_delete_show(request, show_id): #to remove unwanted show timings.
     show = get_object_or_404(Show, id=show_id)
     show.delete()
     return redirect("/admin-shows/")
 
 
 @staff_member_required
-def admin_bookings(request):
+def admin_bookings(request): #to give the admin booking analytics and reports.
     bookings = Booking.objects.all().order_by("-booked_at")
 
     total_earnings = Booking.objects.filter(payment_status=True).aggregate(total=Sum("amount"))["total"] or 0
@@ -1246,7 +1278,7 @@ def admin_bookings(request):
 # ---------------------------
 
 @login_required
-def ai_recommend(request):
+def ai_recommend(request): #to give smart, personalized movie recommendations in ShowTime.
     query = request.GET.get("q", "").strip().lower()
     budget = request.GET.get("budget", "").strip().lower()
     genre_filter = request.GET.get("genre", "").strip().lower()
@@ -1484,8 +1516,8 @@ def add_to_wishlist(request, movie_id):
     return redirect(request.META.get("HTTP_REFERER", "/movies/"))
 
 
-@login_required
-def remove_from_wishlist(request, movie_id):
+@login_required 
+def remove_from_wishlist(request, movie_id): 
     movie = get_object_or_404(Movie, id=movie_id)
 
     Wishlist.objects.filter(user=request.user, movie=movie).delete()
@@ -1500,7 +1532,7 @@ def remove_from_wishlist(request, movie_id):
 # ---------------------------
 
 @require_POST
-def chatbot_reply(request):
+def chatbot_reply(request): #to help users quickly get movie suggestions.
     data = json.loads(request.body or "{}")
     message = (data.get("message") or "").lower()
 
@@ -1527,7 +1559,7 @@ def chatbot_reply(request):
 # ---------------------------
 
 @login_required
-def food_offers(request):
+def food_offers(request): #to let users buy snacks with tickets.
     food_items = FoodItem.objects.filter(is_available=True)
     cart_items = FoodCartItem.objects.filter(user=request.user).select_related("food_item")
     cart_total = sum(item.total_price for item in cart_items)
@@ -1544,7 +1576,7 @@ def food_offers(request):
 
 
 @login_required
-def add_food_to_cart(request, food_id):
+def add_food_to_cart(request, food_id): #to build the food order.
     if request.method != "POST":
         return redirect("food_offers")
 
@@ -1564,7 +1596,7 @@ def add_food_to_cart(request, food_id):
 
 
 @login_required
-def remove_food_from_cart(request, food_id):
+def remove_food_from_cart(request, food_id): #to delete food from order.
     if request.method != "POST":
         return redirect("food_offers")
 
@@ -1575,7 +1607,7 @@ def remove_food_from_cart(request, food_id):
 
 
 @login_required
-def update_food_qty(request, food_id, action):
+def update_food_qty(request, food_id, action): #to manage cart items properly.
     if request.method != "POST":
         return redirect("food_offers")
 
@@ -1603,7 +1635,7 @@ def update_food_qty(request, food_id, action):
 # ---------------------------
 
 @staff_member_required
-def verify_ticket(request, booking_id):
+def verify_ticket(request, booking_id): #to stop ticket misuse at entry.
     booking = get_object_or_404(Booking, id=booking_id)
 
     if request.method == "POST":
@@ -1624,7 +1656,136 @@ def verify_ticket(request, booking_id):
 
 
 # ---------------------------
-# EVENTS
+# TICKETMASTER LIVE EVENTS
 # ---------------------------
-def events(request):
-    return render(request, "booking/events.html")
+
+
+TICKETMASTER_BASE_URL = "https://app.ticketmaster.com/discovery/v2"
+
+
+def _ticketmaster_get(path: str, params: dict | None = None): #to fetch live event data.
+    api_key = getattr(settings, "TICKETMASTER_API_KEY", None)
+    if not api_key:
+        return None
+
+    query_params = params.copy() if params else {}
+    query_params["apikey"] = api_key
+
+    url = f"{TICKETMASTER_BASE_URL}{path}?{urlencode(query_params)}"
+
+    try:
+        req = Request(url, headers={"User-Agent": "ShowTime/1.0"})
+        with urlopen(req, timeout=20) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as e:
+        print(f"Ticketmaster API error for {url}: {e}")
+        return None
+
+
+def _normalize_ticketmaster_event(item: dict, category: str): #to make API data easy to show in templates.
+    images = item.get("images", [])
+    poster_path = images[0].get("url", "") if images else ""
+
+    start = item.get("dates", {}).get("start", {})
+    local_date = start.get("localDate", "")
+    local_time = start.get("localTime", "")
+
+    venues = item.get("_embedded", {}).get("venues", [])
+    venue = venues[0].get("name", "") if venues else ""
+
+    description = (
+        item.get("info")
+        or item.get("pleaseNote")
+        or item.get("description")
+        or ""
+    )
+
+    price = 0
+    price_ranges = item.get("priceRanges", [])
+    if price_ranges:
+        raw_price = price_ranges[0].get("min") or price_ranges[0].get("max") or 0
+        try:
+            price = int(float(raw_price))
+        except (TypeError, ValueError):
+            price = 0
+
+    event_id = item.get("id", "")
+
+    return {
+        "slug": event_id,
+        "id": event_id,
+        "title": item.get("name", "Untitled Event"),
+        "category": category,
+        "description": description,
+        "poster_path": poster_path,
+        "date": local_date,
+        "time": local_time,
+        "venue": venue,
+        "price": price,
+        "ticket_url": item.get("url", ""),
+        "highlights": [
+            venue or "Venue TBA",
+            local_date or "Date TBA",
+            local_time or "Time TBA",
+        ],
+    }
+
+
+def events(request): #to add events section in ShowTime.
+    q = request.GET.get("q", "").strip()
+    country = request.GET.get("country", "US").strip().upper()
+
+    comedy_keyword = f"{q} comedy".strip() if q else "comedy"
+    music_keyword = f"{q} music".strip() if q else "music"
+
+    base_params = {
+        "size": 12,
+    }
+
+    if country:
+        base_params["countryCode"] = country
+
+    comedy_payload = _ticketmaster_get("/events.json", {
+        **base_params,
+        "keyword": comedy_keyword,
+    })
+
+    music_payload = _ticketmaster_get("/events.json", {
+        **base_params,
+        "keyword": music_keyword,
+    })
+
+    comedy_raw = comedy_payload.get("_embedded", {}).get("events", []) if comedy_payload else []
+    music_raw = music_payload.get("_embedded", {}).get("events", []) if music_payload else []
+
+    comedy_events = [_normalize_ticketmaster_event(item, "Comedy") for item in comedy_raw]
+    music_events = [_normalize_ticketmaster_event(item, "Music") for item in music_raw]
+
+    return render(request, "booking/events.html", {
+        "comedy_events": comedy_events,
+        "music_events": music_events,
+        "q": q,
+        "country": country,
+    })
+
+
+def event_detail(request, slug): #To open a full event page.
+    payload = _ticketmaster_get(f"/events/{slug}.json")
+
+    if not payload:
+        return render(request, "booking/event_detail.html", {
+            "event": None
+        })
+
+    classifications = payload.get("classifications", [])
+    category = "Event"
+    if classifications:
+        segment = classifications[0].get("segment", {}).get("name", "")
+        genre = classifications[0].get("genre", {}).get("name", "")
+        category = genre or segment or "Event"
+
+    event = _normalize_ticketmaster_event(payload, category)
+
+    return render(request, "booking/event_detail.html", {
+        "event": event
+    })
