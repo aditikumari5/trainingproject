@@ -1,38 +1,23 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>
-        ShowTime
-    </title>
-
-    <link
-        rel="stylesheet"
-        href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShowTime</title>
 
     <style>
-
         *{
             margin:0;
             padding:0;
             box-sizing:border-box;
-            text-decoration:none;
-            font-family:Arial,sans-serif;
+            font-family:Arial, Helvetica, sans-serif;
         }
 
         body{
-            background:#0b0b0b;
-            color:white;
-            overflow-x:hidden;
+            background:#0d0d0d;
+            color:#fff;
+            min-height:100vh;
         }
 
         a{
@@ -40,935 +25,426 @@
         }
 
         /* NAVBAR */
-
-        nav{
-            width:100%;
-            min-height:78px;
-
-            background:
-                rgba(0,0,0,.88);
-
-            backdrop-filter:blur(14px);
-
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-
-            padding:14px 5%;
-
-            position:fixed;
+        .navbar{
+            position:sticky;
             top:0;
-            left:0;
-
-            z-index:999;
-        }
-
-        .logo{
-            font-size:42px;
-            font-weight:900;
-            color:#ff4d4d;
-        }
-
-        .logo span{
-            color:white;
-        }
-
-        .nav-center{
+            z-index:1000;
             display:flex;
             align-items:center;
-            gap:30px;
+            justify-content:space-between;
+            gap:20px;
+            padding:14px 24px;
+            background:#060606;
+            border-bottom:1px solid rgba(255,255,255,0.06);
+        }
+
+        .brand{
+            font-size:28px;
+            font-weight:800;
+            text-decoration:none;
+            color:#ff4d4d;
+            letter-spacing:-0.5px;
+            white-space:nowrap;
         }
 
         .nav-links{
             display:flex;
             align-items:center;
-            gap:26px;
+            gap:22px;
+            flex-wrap:wrap;
         }
 
         .nav-links a{
-            color:white;
+            text-decoration:none;
+            color:#f2f2f2;
+            font-size:15px;
             font-weight:600;
-            transition:.3s;
-            position:relative;
+            opacity:.92;
         }
 
         .nav-links a:hover{
             color:#ff4d4d;
         }
 
-        .nav-links a::after{
-            content:"";
-
-            position:absolute;
-            left:0;
-            bottom:-6px;
-
-            width:0%;
-            height:2px;
-
-            background:#ff4d4d;
-
-            transition:.3s;
+        .nav-right{
+            display:flex;
+            align-items:center;
+            gap:12px;
         }
-
-        .nav-links a:hover::after{
-            width:100%;
-        }
-
-        /* SEARCH */
 
         .search-box{
-            display:flex;
-            align-items:center;
-            gap:10px;
-        }
-
-        .search-box input{
-            width:240px;
-            height:42px;
-
+            width:200px;
+            max-width:28vw;
+            padding:10px 14px;
             border:none;
-
-            border-radius:999px;
-
-            padding:0 18px;
-
-            background:#181818;
-
-            color:white;
-
             outline:none;
+            border-radius:999px;
+            background:#1a1a1a;
+            color:#fff;
+            border:1px solid rgba(255,255,255,0.06);
         }
 
-        .search-box button{
+        .icon-btn{
             width:44px;
             height:44px;
-
             border:none;
-
             border-radius:50%;
-
             background:#ff4d4d;
-
-            color:white;
-
+            color:#fff;
             cursor:pointer;
-
             font-size:18px;
-
-            transition:.3s;
-        }
-
-        .search-box button:hover{
-            transform:scale(1.08);
-        }
-
-        /* RIGHT NAV */
-
-        .right-nav{
             display:flex;
             align-items:center;
-            gap:14px;
+            justify-content:center;
         }
 
-        .username{
-            background:#181818;
-            padding:10px 18px;
-            border-radius:999px;
+        .auth-btn{
+            text-decoration:none;
+            padding:10px 16px;
+            border-radius:12px;
+            background:#1a1a1a;
+            border:1px solid rgba(255,255,255,0.06);
+            color:#fff;
+            font-weight:700;
             font-size:14px;
         }
 
-        .logout-btn{
-            background:#1f1f1f;
-            color:white;
-
-            padding:11px 18px;
-
-            border-radius:12px;
-
-            transition:.3s;
+        .auth-btn:hover{
+            background:#262626;
         }
 
-        .logout-btn:hover{
-            background:#ff4d4d;
+        .username-pill{
+            padding:10px 14px;
+            border-radius:999px;
+            background:#1a1a1a;
+            border:1px solid rgba(255,255,255,0.06);
+            font-size:14px;
+            font-weight:700;
+            white-space:nowrap;
         }
 
-        /* PAGE CONTENT */
-
-        .page-content{
-            padding-top:90px;
-            min-height:100vh;
+        .main-content{
+            width:100%;
+            min-height:calc(100vh - 72px);
         }
 
-        /* CHATBOT */
-
-        .chatbot-container{
+        /* CHAT WIDGET */
+        .chat-fab{
             position:fixed;
-            bottom:30px;
-            right:30px;
-            z-index:9999;
-        }
-
-        .chat-toggle{
-            width:68px;
-            height:68px;
-
+            right:18px;
+            bottom:18px;
+            z-index:2000;
+            width:58px;
+            height:58px;
             border:none;
-
             border-radius:50%;
-
             background:#ff4d4d;
-
-            color:white;
-
-            font-size:30px;
-
+            color:#fff;
+            font-size:22px;
             cursor:pointer;
-
-            box-shadow:
-                0 10px 30px rgba(255,77,77,.45);
-
-            transition:.3s;
+            box-shadow:0 12px 30px rgba(0,0,0,.35);
         }
 
-        .chat-toggle:hover{
-            transform:scale(1.08);
-        }
-
-        .chat-window{
-            position:absolute;
-            bottom:85px;
-            right:0;
-
-            width:360px;
-            height:520px;
-
-            background:rgba(18,18,18,.96);
-
-            backdrop-filter:blur(18px);
-
-            border-radius:22px;
-
-            overflow:hidden;
-
+        .chat-box{
+            position:fixed;
+            right:18px;
+            bottom:86px;
+            width:320px;
+            height:420px;
+            background:#151515;
+            border:1px solid rgba(255,255,255,0.08);
+            border-radius:16px;
+            box-shadow:0 16px 40px rgba(0,0,0,.45);
+            z-index:2000;
             display:none;
-
-            flex-direction:column;
-
-            border:1px solid rgba(255,255,255,.08);
-
-            box-shadow:
-                0 25px 60px rgba(0,0,0,.6);
+            overflow:hidden;
         }
 
         .chat-header{
-            height:70px;
-
-            background:#141414;
-
             display:flex;
-
             align-items:center;
-
             justify-content:space-between;
-
-            padding:0 20px;
-
-            border-bottom:
-                1px solid rgba(255,255,255,.08);
+            padding:14px 16px;
+            background:#121212;
+            border-bottom:1px solid rgba(255,255,255,0.06);
+            font-weight:800;
         }
 
-        .chat-header h3{
-            font-size:20px;
-        }
-
-        .chat-header button{
-            background:none;
+        .chat-close{
+            background:transparent;
             border:none;
-            color:white;
-            font-size:20px;
+            color:#fff;
+            font-size:24px;
             cursor:pointer;
+            line-height:1;
         }
 
         .chat-messages{
-            flex:1;
-
-            padding:18px;
-
+            height:calc(100% - 118px);
             overflow-y:auto;
-
-            display:flex;
-
-            flex-direction:column;
-
-            gap:14px;
-        }
-
-        .bot-message,
-        .user-message{
-            padding:14px 16px;
-
-            border-radius:16px;
-
-            max-width:80%;
-
-            line-height:1.6;
-
-            font-size:14px;
-        }
-
-        .bot-message{
-            background:#232323;
-            align-self:flex-start;
-        }
-
-        .user-message{
-            background:#ff4d4d;
-            align-self:flex-end;
-        }
-
-        .chat-input-area{
-            display:flex;
-
-            padding:16px;
-
-            gap:10px;
-
-            border-top:
-                1px solid rgba(255,255,255,.08);
-        }
-
-        .chat-input-area input{
-            flex:1;
-
-            height:50px;
-
-            border:none;
-
-            border-radius:14px;
-
-            padding:0 16px;
-
-            background:#1f1f1f;
-
-            color:white;
-
-            outline:none;
-        }
-
-        .chat-input-area button{
-            width:54px;
-
-            border:none;
-
-            border-radius:14px;
-
-            background:#ff4d4d;
-
-            color:white;
-
-            font-size:18px;
-
-            cursor:pointer;
-        }
-
-        /* FOOD CART */
-
-        .food-cart-btn{
-            position:fixed;
-            right:30px;
-            bottom:120px;
-
-            width:65px;
-            height:65px;
-
-            border:none;
-
-            border-radius:50%;
-
-            background:#ff4d4d;
-
-            color:white;
-
-            font-size:28px;
-
-            cursor:pointer;
-
-            z-index:999;
-
-            box-shadow:
-                0 10px 30px rgba(255,77,77,.45);
-        }
-
-        .food-cart-sidebar{
-            position:fixed;
-            top:0;
-            right:-420px;
-
-            width:400px;
-            height:100vh;
-
-            background:#121212;
-
-            z-index:99999;
-
-            transition:.4s;
-
-            overflow-y:auto;
-
-            padding:24px;
-        }
-
-        .food-cart-sidebar.active{
-            right:0;
-        }
-
-        .cart-header{
-            display:flex;
-            justify-content:space-between;
-            align-items:center;
-
-            margin-bottom:30px;
-        }
-
-        .cart-header h2{
-            font-size:28px;
-        }
-
-        .close-cart{
-            background:none;
-            border:none;
-            color:white;
-            font-size:26px;
-            cursor:pointer;
-        }
-
-        .cart-item{
-            background:#1b1b1b;
-
-            border-radius:18px;
-
-            padding:18px;
-
-            margin-bottom:18px;
-        }
-
-        .cart-item h3{
-            margin-bottom:10px;
-        }
-
-        .cart-item p{
-            color:#cfcfcf;
-            margin-bottom:8px;
-        }
-
-        .qty-controls{
-            display:flex;
-            gap:10px;
-            margin-top:14px;
-        }
-
-        .qty-controls button{
-            width:36px;
-            height:36px;
-
-            border:none;
-
-            border-radius:10px;
-
-            background:#ff4d4d;
-
-            color:white;
-
-            cursor:pointer;
-        }
-
-        .cart-total{
-            margin-top:30px;
-
-            background:#1b1b1b;
-
-            padding:22px;
-
-            border-radius:18px;
-        }
-
-        .checkout-btn{
-            width:100%;
-
-            margin-top:16px;
-
-            border:none;
-
-            background:#ff4d4d;
-
-            color:white;
-
             padding:14px;
+            display:flex;
+            flex-direction:column;
+            gap:10px;
+        }
 
+        .chat-bot,
+        .chat-user{
+            max-width:85%;
+            padding:10px 12px;
             border-radius:14px;
+            font-size:14px;
+            line-height:1.5;
+            word-wrap:break-word;
+        }
 
-            font-size:16px;
+        .chat-bot{
+            align-self:flex-start;
+            background:#242424;
+            color:#fff;
+        }
 
-            font-weight:700;
+        .chat-user{
+            align-self:flex-end;
+            background:#ff4d4d;
+            color:#fff;
+        }
 
+        .chat-input-row{
+            display:flex;
+            gap:10px;
+            padding:12px;
+            border-top:1px solid rgba(255,255,255,0.06);
+            background:#121212;
+        }
+
+        .chat-input{
+            flex:1;
+            padding:12px 14px;
+            border-radius:12px;
+            border:none;
+            outline:none;
+            background:#1d1d1d;
+            color:#fff;
+        }
+
+        .chat-send{
+            width:48px;
+            border:none;
+            border-radius:12px;
+            background:#ff4d4d;
+            color:#fff;
+            font-size:18px;
             cursor:pointer;
         }
 
-        /* SCROLLBAR */
-
-        ::-webkit-scrollbar{
-            width:8px;
-            height:8px;
-        }
-
-        ::-webkit-scrollbar-thumb{
-            background:#ff4d4d;
-            border-radius:999px;
-        }
-
-        /* RESPONSIVE */
-
-        @media(max-width:1200px){
-
-            .nav-center{
-                gap:16px;
-            }
-
-            .search-box input{
-                width:180px;
-            }
-
-        }
-
-        @media(max-width:950px){
-
-            nav{
-                flex-direction:column;
-                gap:18px;
-            }
-
-            .nav-center{
-                flex-direction:column;
-                gap:18px;
-            }
-
-            .nav-links{
+        @media (max-width: 900px){
+            .navbar{
                 flex-wrap:wrap;
-                justify-content:center;
-            }
-
-            .page-content{
-                padding-top:220px;
-            }
-
-        }
-
-        @media(max-width:600px){
-
-            .logo{
-                font-size:34px;
+                gap:12px;
             }
 
             .nav-links{
-                gap:16px;
-                font-size:14px;
+                gap:14px;
             }
 
-            .search-box input{
-                width:150px;
+            .search-box{
+                width:160px;
+                max-width:45vw;
             }
-
-            .chat-window{
-                width:320px;
-                height:480px;
-            }
-
-            .food-cart-sidebar{
-                width:100%;
-            }
-
         }
 
+        @media (max-width: 640px){
+            .nav-links{
+                display:none;
+            }
+
+            .search-box{
+                width:150px;
+                max-width:55vw;
+            }
+
+            .chat-box{
+                width:92vw;
+                right:4vw;
+            }
+        }
     </style>
-
 </head>
-
 <body>
 
-    <!-- NAVBAR -->
+    <header class="navbar">
+        <a href="{% url 'home' %}" class="brand">ShowTime</a>
 
-    <nav>
+        <nav class="nav-links">
+            <a href="{% url 'home' %}">🏠 Home</a>
+            <a href="{% url 'movies' %}">🎬 Movies</a>
+            <a href="{% url 'wishlist' %}">💗 Wishlist</a>
+            <a href="{% url 'food_offers' %}">🍔 Food & Combos</a>
+            <a href="{% url 'my_bookings' %}">🎟 My Bookings</a>
+        </nav>
 
-        <a href="/" class="logo">
-            Show<span>Time</span>
-        </a>
+        <div class="nav-right">
+    <input class="search-box" type="text" placeholder="Search movies...">
 
-        <div class="nav-center">
-
-            <div class="nav-links">
-
-                <a href="/">
-                    <i class="fa-solid fa-house"></i>
-                    Home
-                </a>
-
-                <a href="/movies/">
-                    <i class="fa-solid fa-film"></i>
-                    Movies
-                </a>
-
-                <a href="/wishlist/">
-                    ❤️ Wishlist
-                </a>
-
-                <a href="/food-offers/">
-                    🍔 Food & Combos
-                </a>
-
-                <a href="/my-bookings/">
-                    🎟 My Bookings
-                </a>
-
-            </div>
-
-            <!-- SEARCH -->
-
-            <form
-                action="/movies/"
-                method="GET"
-                class="search-box"
-            >
-
-                <input
-                    type="text"
-                    name="q"
-                    id="movieSearch"
-                    placeholder="Search movies..."
-                >
-
-                <button
-                    type="button"
-                    id="voiceSearchBtn"
-                >
-                    🎤
-                </button>
-
-            </form>
-
-        </div>
-
-        <div class="right-nav">
-
-            {% if user.is_authenticated %}
-
-                <div class="username">
-                    👋 {{ user.username }}
-                </div>
-
-                <a
-                    href="/logout/"
-                    class="logout-btn"
-                >
-                    Logout
-                </a>
-
-            {% else %}
-
-                <a
-                    href="/signup/"
-                    class="logout-btn"
-                >
-                    Login
-                </a>
-
-            {% endif %}
-
-        </div>
-
-    </nav>
-
-    <!-- PAGE CONTENT -->
-
-    <div class="page-content">
-
-        {% block content %}
-
-        {% endblock %}
-
-    </div>
-
-    <!-- FOOD CART BUTTON -->
-
-    <button
-        class="food-cart-btn"
-        id="openCart"
-    >
-        🍿
+    <button id="chat-toggle" class="icon-btn" type="button" aria-label="Open chatbot">
+        🤖
     </button>
 
-    <!-- FOOD CART SIDEBAR -->
+    {% if user.is_authenticated %}
+        <span class="username-pill">👋 {{ user.username }}</span>
+        <a href="{% url 'logout' %}" class="auth-btn">Logout</a>
+    {% else %}
+        <a href="{% url 'signup' %}" class="auth-btn">Signup</a>
+        <a href="{% url 'login' %}" class="auth-btn">Login</a>
+    {% endif %}
+</div>
+    </header>
 
-    <div
-        class="food-cart-sidebar"
-        id="foodCart"
-    >
-
-        <div class="cart-header">
-
-            <h2>
-                🛒 Food Cart
-            </h2>
-
-            <button
-                class="close-cart"
-                id="closeCart"
-            >
-                ✖
-            </button>
-
-        </div>
-
-        {% if user.is_authenticated and cart_items %}
-
-            {% for item in cart_items %}
-
-            <div class="cart-item">
-
-                <h3>
-                    {{ item.food_item.name }}
-                </h3>
-
-                <p>
-                    Qty: {{ item.quantity }}
-                </p>
-
-                <p>
-                    ₹{{ item.total_price }}
-                </p>
-
-                <div class="qty-controls">
-
-                    <form
-                        action="{% url 'update_food_qty' item.food_item.id 'dec' %}"
-                        method="POST"
-                    >
-
-                        {% csrf_token %}
-
-                        <button type="submit">
-                            -
-                        </button>
-
-                    </form>
-
-                    <form
-                        action="{% url 'update_food_qty' item.food_item.id 'inc' %}"
-                        method="POST"
-                    >
-
-                        {% csrf_token %}
-
-                        <button type="submit">
-                            +
-                        </button>
-
-                    </form>
-
-                </div>
-
-            </div>
-
-            {% endfor %}
-
-            <div class="cart-total">
-
-                <h3>
-                    Total: ₹{{ cart_total }}
-                </h3>
-
-                <button class="checkout-btn">
-                    Proceed To Checkout
-                </button>
-
-            </div>
-
-        {% else %}
-
-            <p>
-                Your food cart is empty.
-            </p>
-
-        {% endif %}
-
-    </div>
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
 
     <!-- CHATBOT -->
+    <button id="chat-toggle-fab" class="chat-fab" type="button" aria-label="Toggle chatbot">
+        🤖
+    </button>
 
-    <div class="chatbot-container">
-
-        <button
-            id="chatToggle"
-            class="chat-toggle"
-        >
-            🤖
-        </button>
-
-        <div
-            class="chat-window"
-            id="chatWindow"
-        >
-
-            <div class="chat-header">
-
-                <h3>
-                    ShowTime AI
-                </h3>
-
-                <button id="closeChat">
-                    ✖
-                </button>
-
-            </div>
-
-            <div
-                class="chat-messages"
-                id="chatMessages"
-            >
-
-                <div class="bot-message">
-                    👋 Hi! Ask me movie recommendations.
-                </div>
-
-            </div>
-
-            <div class="chat-input-area">
-
-                <input
-                    type="text"
-                    id="chatInput"
-                    placeholder="Ask for movies..."
-                >
-
-                <button id="sendMessage">
-                    ➤
-                </button>
-
-            </div>
-
+    <div id="chat-box" class="chat-box">
+        <div class="chat-header">
+            <span>ShowTime AI</span>
+            <button id="chat-close" class="chat-close" type="button" aria-label="Close chatbot">×</button>
         </div>
 
+        <div id="chat-messages" class="chat-messages">
+            <div class="chat-bot">👋 Hi! Ask me movie recommendations.</div>
+        </div>
+
+        <div class="chat-input-row">
+            <input
+                id="chat-input"
+                class="chat-input"
+                type="text"
+                placeholder="Type horror, comedy, action..."
+                autocomplete="off"
+            >
+            <button id="chat-mic" class="chat-send" type="button" title="Voice input" aria-label="Voice input">🎤</button>
+            <button id="chat-send" class="chat-send" type="button" title="Send" aria-label="Send message">➤</button>
+        </div>
     </div>
 
     <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const chatToggle = document.getElementById("chat-toggle");
+            const chatToggleFab = document.getElementById("chat-toggle-fab");
+            const chatBox = document.getElementById("chat-box");
+            const chatClose = document.getElementById("chat-close");
+            const chatMessages = document.getElementById("chat-messages");
+            const chatInput = document.getElementById("chat-input");
+            const chatMic = document.getElementById("chat-mic");
+            const chatSend = document.getElementById("chat-send");
 
-        /* FOOD CART */
-
-        const openCart =
-        document.getElementById("openCart");
-
-        const closeCart =
-        document.getElementById("closeCart");
-
-        const foodCart =
-        document.getElementById("foodCart");
-
-        openCart.addEventListener("click", ()=>{
-
-            foodCart.classList.add("active");
-
-        });
-
-        closeCart.addEventListener("click", ()=>{
-
-            foodCart.classList.remove("active");
-
-        });
-
-        /* CHATBOT */
-
-        const chatToggle =
-        document.getElementById("chatToggle");
-
-        const chatWindow =
-        document.getElementById("chatWindow");
-
-        const closeChat =
-        document.getElementById("closeChat");
-
-        chatToggle.addEventListener("click", ()=>{
-
-            if(chatWindow.style.display === "flex"){
-
-                chatWindow.style.display = "none";
+            if (!chatToggle || !chatToggleFab || !chatBox || !chatClose || !chatMessages || !chatInput || !chatMic || !chatSend) {
+                return;
             }
 
-            else{
-
-                chatWindow.style.display = "flex";
+            function getCSRFToken() {
+                const match = document.cookie
+                    .split("; ")
+                    .find(row => row.startsWith("csrftoken="));
+                return match ? match.split("=")[1] : "";
             }
 
-        });
+            function addMessage(text, sender) {
+                const msg = document.createElement("div");
+                msg.className = sender === "user" ? "chat-user" : "chat-bot";
+                msg.textContent = text;
+                chatMessages.appendChild(msg);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
 
-        closeChat.addEventListener("click", ()=>{
+            async function sendMessage() {
+                const message = chatInput.value.trim();
+                if (!message) return;
 
-            chatWindow.style.display = "none";
+                addMessage(message, "user");
+                chatInput.value = "";
 
-        });
+                try {
+                    const response = await fetch("/chatbot-reply/", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": getCSRFToken()
+                        },
+                        body: JSON.stringify({ message: message })
+                    });
 
-        /* VOICE SEARCH */
+                    const data = await response.json();
 
-        const voiceBtn =
-        document.getElementById("voiceSearchBtn");
+                    if (data.reply) {
+                        addMessage(data.reply, "bot");
+                    } else {
+                        addMessage("Sorry, I could not understand that.", "bot");
+                    }
+                } catch (error) {
+                    console.error("Chatbot error:", error);
+                    addMessage("Something went wrong. Please try again.", "bot");
+                }
+            }
 
-        const searchInput =
-        document.getElementById("movieSearch");
+            function openChat() {
+                chatBox.style.display = "block";
+            }
 
-        if ('webkitSpeechRecognition' in window) {
+            function closeChat() {
+                chatBox.style.display = "none";
+            }
 
-            const recognition =
-            new webkitSpeechRecognition();
+            chatToggle.addEventListener("click", openChat);
+            chatToggleFab.addEventListener("click", openChat);
+            chatClose.addEventListener("click", closeChat);
 
-            recognition.continuous = false;
+            chatSend.addEventListener("click", sendMessage);
 
-            recognition.lang = "en-US";
-
-            recognition.interimResults = false;
-
-            recognition.maxAlternatives = 1;
-
-            voiceBtn.addEventListener("click", ()=>{
-
-                recognition.start();
-
-                voiceBtn.innerText = "🎙";
-
+            chatInput.addEventListener("keydown", function (e) {
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    sendMessage();
+                }
             });
 
-            recognition.onresult = function(event){
+            // Voice input
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-                const transcript =
-                event.results[0][0].transcript;
+            if (!SpeechRecognition) {
+                chatMic.style.display = "none";
+            } else {
+                const recognition = new SpeechRecognition();
+                recognition.lang = "en-US";
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
 
-                searchInput.value = transcript;
+                chatMic.addEventListener("click", function () {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.error("Speech recognition start error:", e);
+                    }
+                });
 
-                window.location.href =
-                "/movies/?q=" +
-                encodeURIComponent(transcript);
+                recognition.onresult = function (event) {
+                    const transcript = event.results[0][0].transcript;
+                    chatInput.value = transcript;
+                    chatInput.focus();
+                };
 
-                voiceBtn.innerText = "🎤";
-
-            };
-
-            recognition.onerror = function(){
-
-                voiceBtn.innerText = "🎤";
-            };
-
-        }
-
+                recognition.onerror = function (event) {
+                    console.error("Speech Recognition Error:", event.error);
+                };
+            }
+        });
     </script>
 
 </body>
-
 </html>

@@ -319,6 +319,8 @@ body{
 
     object-fit:cover;
 
+    display:block;
+
 }
 
 .movie-info{
@@ -679,6 +681,7 @@ body{
                         <img
                             src="{{ movie.poster_path }}"
                             alt="{{ movie.title }}"
+                            loading="lazy"
                         >
 
                     {% else %}
@@ -686,6 +689,7 @@ body{
                         <img
                             src="{% static 'images/default-poster.jpg' %}"
                             alt="{{ movie.title }}"
+                            loading="lazy"
                         >
 
                     {% endif %}

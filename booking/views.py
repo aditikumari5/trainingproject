@@ -1,11 +1,13 @@
-import hashlib
-import hmac
 import io
 import json
 import random
 import re
 from datetime import datetime, timedelta
 from decimal import Decimal
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+
 import qrcode
 import razorpay
 import requests
@@ -33,6 +35,7 @@ from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.utils import ImageReader
 from reportlab.pdfgen import canvas
+
 from .models import (
     Booking,
     ContinueWatching,
@@ -43,24 +46,13 @@ from .models import (
     Show,
     Wishlist,
 )
-
-from django.http import HttpResponse
-from django.shortcuts import render
-from django.http import JsonResponse, HttpResponse
-import razorpay
-from django.db import transaction
-from django.shortcuts import render, get_object_or_404
-from django.shortcuts import render
-from .models import Event
-from urllib.parse import urlencode
-from urllib.request import Request, urlopen
-from urllib.error import HTTPError, URLError
+from openai import OpenAI
 
 
 
-
-
-
+# ---------------------------
+# FLAGS / MODEL CHECKS
+# ---------------------------
 
 BOOKING_HAS_USER_FIELD = any(f.name == "user" for f in Booking._meta.get_fields())
 MOVIE_HAS_BUDGET_FIELD = any(f.name == "budget_level" for f in Movie._meta.get_fields())
@@ -71,6 +63,9 @@ MOVIE_HAS_BUDGET_FIELD = any(f.name == "budget_level" for f in Movie._meta.get_f
 # ---------------------------
 
 def ensure_seats_for_show(show):
+    """
+    Create a default seat layout for a show if seats do not already exist.
+    """
     if Seat.objects.filter(show=show).exists():
         return
 
@@ -92,6 +87,9 @@ def ensure_seats_for_show(show):
 
 
 def generate_ticket_pdf_buffer(booking):
+    """
+    Build a PDF ticket buffer with QR code for verification.
+    """
     site_url = getattr(settings, "SITE_URL", "http://127.0.0.1:8000")
     verification_url = f"{site_url}/ticket/verify/{booking.id}/"
 
@@ -242,6 +240,9 @@ def generate_ticket_pdf_buffer(booking):
 
 
 def send_otp_email(receiver_email, otp):
+    """
+    Send OTP mail for signup/login verification.
+    """
     print("Sending OTP to:", receiver_email)
     send_mail(
         "ShowTime OTP Verification",
@@ -254,6 +255,9 @@ def send_otp_email(receiver_email, otp):
 
 
 def send_booking_confirmation_email(user_email, booking):
+    """
+    Send booking confirmation email with PDF ticket attached.
+    """
     if not user_email:
         return
 
@@ -293,6 +297,9 @@ def send_booking_confirmation_email(user_email, booking):
 
 
 def release_expired_locks():
+    """
+    Unlock seats whose lock time has expired.
+    """
     Seat.objects.filter(
         is_locked=True,
         lock_expires_at__isnull=False,
@@ -306,6 +313,9 @@ def release_expired_locks():
 
 
 def lock_seats(seats, lock_owner, minutes=5):
+    """
+    Lock selected seats for a few minutes.
+    """
     expires_at = timezone.now() + timedelta(minutes=minutes)
     for seat in seats:
         seat.is_locked = True
@@ -317,6 +327,9 @@ def lock_seats(seats, lock_owner, minutes=5):
 
 
 def get_youtube_trailer_url(movie_title: str):
+    """
+    Find a YouTube trailer URL for a movie.
+    """
     api_key = getattr(settings, "YOUTUBE_API_KEY", None)
     if not api_key:
         return None
@@ -345,6 +358,9 @@ def get_youtube_trailer_url(movie_title: str):
 
 
 def release_seats_for_booking(booking):
+    """
+    Free up seats when a booking is cancelled.
+    """
     show = Show.objects.filter(
         movie_name__iexact=booking.movie_name,
         show_time=str(booking.show_time),
@@ -366,6 +382,9 @@ def release_seats_for_booking(booking):
 
 
 def get_user_preferred_genres(user):
+    """
+    Build a small genre preference list from the user's past bookings.
+    """
     if not BOOKING_HAS_USER_FIELD:
         return []
 
@@ -388,6 +407,9 @@ def get_user_preferred_genres(user):
 
 
 def get_trending_movies():
+    """
+    Score and sort active movies for the home page.
+    """
     recent_days = timezone.now() - timedelta(days=7)
     trending_scores = {}
     movies = Movie.objects.filter(is_active=True)
@@ -431,9 +453,14 @@ def get_trending_movies():
             pass
 
         # Poster URL fix
-        poster_path = movie.poster_path or ""
-        if poster_path and not poster_path.startswith("http"):
-            poster_path = f"{tmdb_image_base_url}{poster_path}"
+        poster_path = (movie.poster_path or "").strip()
+        if poster_path:
+            if poster_path.startswith("//"):
+                poster_path = "https:" + poster_path
+            elif poster_path.startswith("/"):
+                poster_path = f"{tmdb_image_base_url}{poster_path}"
+            elif not poster_path.startswith("http"):
+                poster_path = f"{tmdb_image_base_url}/{poster_path.lstrip('/')}"
 
         trending_scores[movie.id] = {
             "id": movie.id,
@@ -456,7 +483,11 @@ def get_trending_movies():
 
     return sorted_movies[:10]
 
+
 def get_continue_watching(user):
+    """
+    Return the user's in-progress continue watching items.
+    """
     if not user.is_authenticated:
         return []
 
@@ -470,6 +501,9 @@ def get_continue_watching(user):
 
 
 def get_because_you_watched(user):
+    """
+    Return recommendation sections based on the user's recent watched items.
+    """
     if not user.is_authenticated:
         return []
 
@@ -503,6 +537,9 @@ def get_because_you_watched(user):
 
 
 def get_wishlist_movie_ids(request):
+    """
+    Return a list of movie IDs currently in the user's wishlist.
+    """
     if not request.user.is_authenticated:
         return []
     return list(Wishlist.objects.filter(user=request.user).values_list("movie_id", flat=True))
@@ -512,33 +549,65 @@ def get_wishlist_movie_ids(request):
 # SIGNUP / OTP / AUTH
 # ---------------------------
 
-def signup_view(request): #This handles new user signup. It checks username, email, and password, then validates them. If everything is fine, it creates the user, sends an OTP to email, saves the OTP in session, and sends the user to the OTP verification page
+def signup_view(request):
     if request.method == "POST":
-        username = request.POST.get("username")
-        email = request.POST.get("email")
-        password = request.POST.get("password")
+        # Strip spaces so " aditi " becomes "aditi"
+        username = (request.POST.get("username") or "").strip()
+        email = (request.POST.get("email") or "").strip().lower()
+        password = request.POST.get("password") or ""
 
+        # Basic validation
         if not username or not email or not password:
-            return render(request, "booking/signup.html", {"error": "All fields are required"})
+            return render(
+                request,
+                "booking/signup.html",
+                {"error": "All fields are required"},
+            )
 
         if len(password) < 6:
-            return render(request, "booking/signup.html", {"error": "Password must be at least 6 characters"})
+            return render(
+                request,
+                "booking/signup.html",
+                {"error": "Password must be at least 6 characters"},
+            )
 
         if not any(char.isdigit() for char in password):
-            return render(request, "booking/signup.html", {"error": "Password must contain a number"})
+            return render(
+                request,
+                "booking/signup.html",
+                {"error": "Password must contain a number"},
+            )
 
-        if User.objects.filter(username=username).exists():
-            return render(request, "booking/signup.html", {"error": "Username already exists"})
+        # Email must be unique
+        if User.objects.filter(email__iexact=email).exists():
+            return render(
+                request,
+                "booking/signup.html",
+                {"error": "Email already registered"},
+            )
 
-        if User.objects.filter(email=email).exists():
-            return render(request, "booking/signup.html", {"error": "Email already registered"})
+        # Username cannot truly be non-unique with Django's default User model.
+        # So if the username already exists, auto-generate a unique one.
+        original_username = username
+        counter = 1
 
-        user = User.objects.create_user(username=username, email=email, password=password)
+        while User.objects.filter(username__iexact=username).exists():
+            username = f"{original_username}{counter}"
+            counter += 1
+
+        # Create user
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password,
+        )
+
         otp = random.randint(100000, 999999)
 
         try:
             send_otp_email(email, otp)
         except Exception as e:
+            # If email fails, delete the user so partial signup does not remain
             user.delete()
             print("MAIL ERROR:", repr(e))
             return render(
@@ -547,14 +616,19 @@ def signup_view(request): #This handles new user signup. It checks username, ema
                 {"error": "OTP could not be sent. Check SendGrid setup."},
             )
 
+        # Save OTP and user id in session
         request.session["signup_otp"] = str(otp)
         request.session["signup_user_id"] = user.id
+
         return redirect("/verify-signup-otp/")
 
     return render(request, "booking/signup.html")
 
 
-def signup_otp(request): #This checks the OTP entered during signup. If it matches the saved OTP, the user is logged in and redirected to /movies/
+def signup_otp(request):
+    """
+    Verify signup OTP and log the user in.
+    """
     if request.method == "POST":
         entered_otp = request.POST.get("otp")
         saved_otp = request.session.get("signup_otp")
@@ -572,10 +646,13 @@ def signup_otp(request): #This checks the OTP entered during signup. If it match
     return render(request, "booking/verify_signup_otp.html")
 
 
-def otp_login(request): #This is for login with email + OTP. It checks whether the email exists, sends an OTP to that email, stores OTP and user id in session, and redirects to the OTP verification page.
+def otp_login(request):
+    """
+    Send OTP to an existing email address for login.
+    """
     if request.method == "POST":
-        email = request.POST.get("email")
-        user = User.objects.filter(email=email).first()
+        email = (request.POST.get("email") or "").strip().lower()
+        user = User.objects.filter(email__iexact=email).first()
 
         if not user:
             return render(
@@ -606,6 +683,9 @@ def otp_login(request): #This is for login with email + OTP. It checks whether t
 
 
 def verify_otp(request):
+    """
+    Verify login OTP and log the user in.
+    """
     if request.method == "POST":
         entered_otp = request.POST.get("otp")
         saved_otp = request.session.get("otp")
@@ -624,6 +704,9 @@ def verify_otp(request):
 
 
 def logout_view(request):
+    """
+    Log the user out and return to home.
+    """
     logout(request)
     return redirect("/")
 
@@ -632,7 +715,10 @@ def logout_view(request):
 # HOME / MOVIES / DETAILS
 # ---------------------------
 
-def home(request): #Shows the home page. It loads trending movies, wishlist items, continue-watching items, and “because you watched” suggestions.
+def home(request):
+    """
+    Render the home page with movies and personalized sections.
+    """
     trending_movies = get_trending_movies()
     wishlist_movie_ids = get_wishlist_movie_ids(request)
 
@@ -655,7 +741,10 @@ def home(request): #Shows the home page. It loads trending movies, wishlist item
     )
 
 
-def movies(request): #Shows the movies listing page. It can search movies by title/genre and filter by genre. It also builds the genre list for filters     
+def movies(request):
+    """
+    Render the full movies listing page with search and genre filter.
+    """
     query = request.GET.get("q", "").strip()
     selected_genre = request.GET.get("genre", "").strip()
 
@@ -689,8 +778,11 @@ def movies(request): #Shows the movies listing page. It can search movies by tit
     )
 
 
-@login_required 
-def movie_detail(request, movie_id): #Shows the full details of one movie. It gets the movie by ID, finds a trailer from TMDb or YouTube, and sends all data to the detail page.
+def movie_detail(request, movie_id):
+    """
+    Show the full details of one movie.
+    This page is public, so no login required.
+    """
     movie = get_object_or_404(Movie, id=movie_id, is_active=True)
 
     trailer_key = None
@@ -743,7 +835,10 @@ def movie_detail(request, movie_id): #Shows the full details of one movie. It ge
 # ---------------------------
 
 @login_required
-def show_timings(request): #This shows all available show times for a selected movie. If no shows exist, it creates default timings like 10 AM, 2 PM, and 6 PM, then makes seats for them.
+def show_timings(request):
+    """
+    Show available show times for a movie and create default shows if missing.
+    """
     movie_id = request.GET.get("movie_id")
     if not movie_id:
         return redirect("/movies/")
@@ -769,7 +864,10 @@ def show_timings(request): #This shows all available show times for a selected m
 
 
 @login_required
-def show_seats(request): #This shows all seats for one selected show. It also stores show details in session so the booking flow can continue.
+def show_seats(request):
+    """
+    Show seats for the selected show and store session values for booking.
+    """
     show_id = request.GET.get("show_id")
     if not show_id:
         return redirect("/movies/")
@@ -784,20 +882,23 @@ def show_seats(request): #This shows all seats for one selected show. It also st
     request.session["show_time"] = str(show.show_time)
 
     return render(
-    request,
-    "booking/seats.html",
-    {
-        "show": show,
-        "seats": seats,
-        "movie": show.movie_name,
-        "show_time": show.show_time,
-        "now": timezone.now(),
-    },
-)
+        request,
+        "booking/seats.html",
+        {
+            "show": show,
+            "seats": seats,
+            "movie": show.movie_name,
+            "show_time": show.show_time,
+            "now": timezone.now(),
+        },
+    )
 
 
 @login_required
-def book_seat(request, seat_id): #This books one seat safely using transaction.atomic(). It first checks whether the seat is already booked or locked.
+def book_seat(request, seat_id):
+    """
+    Book a single seat safely.
+    """
     with transaction.atomic():
         seat = Seat.objects.select_for_update().get(id=seat_id)
         if seat.is_booked:
@@ -811,16 +912,15 @@ def book_seat(request, seat_id): #This books one seat safely using transaction.a
 
 
 @login_required
-def book_multiple(request): #Why used: this is the main seat-booking + payment step.
+def book_multiple(request):
+    """
+    Main seat booking step: validate seats, create Razorpay order, render payment page.
+    """
     if request.method != "POST":
         return HttpResponse("Invalid request", status=405)
 
     selected_seats = request.POST.getlist("selected_seats")
     show_id = request.POST.get("show_id")
-
-    print("POST DATA:", request.POST)
-    print("selected_seats:", selected_seats)
-    print("show_id:", show_id)
 
     if not selected_seats:
         return HttpResponse("No seats selected", status=400)
@@ -828,108 +928,100 @@ def book_multiple(request): #Why used: this is the main seat-booking + payment s
     if not show_id:
         return HttpResponse("Show ID missing", status=400)
 
-    show = get_object_or_404(Show, id=show_id)
+    with transaction.atomic():
+        show = get_object_or_404(Show, id=show_id)
 
-    seats_qs = Seat.objects.filter(show=show, seat_number__in=selected_seats)
-
-    if seats_qs.count() != len(selected_seats):
-        return HttpResponse("One or more seats are invalid", status=400)
-
-    if seats_qs.filter(is_booked=True).exists():
-        return HttpResponse("One or more selected seats are already booked", status=400)
-
-    if seats_qs.filter(is_locked=True).exists():
-        return HttpResponse("One or more selected seats are locked", status=400)
-
-    total_price = sum(int(seat.price) for seat in seats_qs)
-
-    # Save session first
-    request.session["selected_seats"] = selected_seats
-    request.session["show_id"] = show.id
-    request.session["total_price"] = str(total_price)
-    request.session.modified = True
-    request.session.save()
-
-    # Razorpay client
-    try:
-        client = razorpay.Client(
-            auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
+        seats_qs = Seat.objects.select_for_update().filter(
+            show=show,
+            seat_number__in=selected_seats,
         )
-    except Exception as e:
-        return HttpResponse(f"Razorpay client creation failed: {e}", status=500)
 
-    # Create order
-    order_data = {
-        "amount": int(total_price * 100),
-        "currency": "INR",
-        "payment_capture": "1",
-    }
+        if seats_qs.count() != len(selected_seats):
+            return HttpResponse("One or more seats are invalid", status=400)
 
-    try:
-        order = client.order.create(data=order_data)
-    except Exception as e:
-        return HttpResponse(f"Razorpay order creation failed: {e}", status=500)
+        if seats_qs.filter(is_booked=True).exists():
+            return HttpResponse("One or more selected seats are already booked", status=400)
 
-    print("ORDER CREATED:", order)
+        if seats_qs.filter(is_locked=True).exists():
+            return HttpResponse("One or more selected seats are locked", status=400)
 
-    request.session["razorpay_order_id"] = order["id"]
-    request.session.save()
+        total_price = sum(int(seat.price) for seat in seats_qs)
 
-    return render(request, "booking/payment.html", {
-        "show": show,
-        "selected_seats": selected_seats,
-        "total_price": total_price,
-        "order_id": order["id"],
-        "razorpay_key": settings.RAZORPAY_KEY_ID,
-        "amount": int(total_price * 100),
-        "currency": "INR",
-    })
+        # Save session for payment success flow
+        request.session["selected_seats"] = selected_seats
+        request.session["show_id"] = show.id
+        request.session["total_price"] = str(total_price)
+        request.session.modified = True
+        request.session.save()
+
+        # Razorpay client
+        try:
+            client = razorpay.Client(
+                auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
+            )
+        except Exception as e:
+            return HttpResponse(f"Razorpay client creation failed: {e}", status=500)
+
+        # Create Razorpay order
+        order_data = {
+            "amount": int(total_price * 100),
+            "currency": "INR",
+            "payment_capture": "1",
+        }
+
+        try:
+            order = client.order.create(data=order_data)
+        except Exception as e:
+            return HttpResponse(f"Razorpay order creation failed: {e}", status=500)
+
+        request.session["razorpay_order_id"] = order["id"]
+        request.session.save()
+
+    return render(
+        request,
+        "booking/payment.html",
+        {
+            "show": show,
+            "selected_seats": selected_seats,
+            "total_price": total_price,
+            "order_id": order["id"],
+            "razorpay_key": settings.RAZORPAY_KEY_ID,
+            "amount": int(total_price * 100),
+            "currency": "INR",
+        },
+    )
+
+
 # ---------------------------
 # PAYMENT
 # ---------------------------
 
 @login_required
-def payment_view(request): #Why used: to collect the total amount before payment.
+def payment_view(request):
+    """
+    Legacy payment view; kept safe for older templates/flows.
+    """
     release_expired_locks()
 
-    seat_ids = request.session.get("booked_seats", [])
-    if not seat_ids:
-        return HttpResponseBadRequest("No seats found in session")
+    show_id = request.session.get("show_id")
+    selected_seats = request.session.get("selected_seats", [])
+    total_price = Decimal(str(request.session.get("total_price", 0) or 0))
 
-    movie_name = request.session.get("movie_name", "Unknown Movie")
-    show_time = request.session.get("show_time", "Unknown Time")
-    seats = request.session.get("seats", "N/A")
-    ticket_total = Decimal(str(request.session.get("amount", 0) or 0))
+    if not show_id or not selected_seats:
+        return redirect("/seats/")
+
+    show = get_object_or_404(Show, id=show_id)
+    seat_objects = Seat.objects.filter(show=show, seat_number__in=selected_seats)
+    if total_price <= 0:
+        total_price = Decimal(sum(int(s.price) for s in seat_objects))
+
     lock_expires_at = request.session.get("lock_expires_at")
-
-    if ticket_total <= 0:
-        return redirect("/seats/")
-
-    if not lock_expires_at:
-        return redirect("/seats/")
-
-    try:
-        expires_at = datetime.fromisoformat(lock_expires_at)
-        if timezone.is_naive(expires_at):
-            expires_at = timezone.make_aware(expires_at)
-    except Exception:
-        return redirect("/seats/")
-
-    if timezone.now() > expires_at:
-        request.session.pop("booked_seats", None)
-        request.session.pop("show_id", None)
-        request.session.pop("movie_name", None)
-        request.session.pop("show_time", None)
-        request.session.pop("seats", None)
-        request.session.pop("amount", None)
-        request.session.pop("lock_expires_at", None)
-        return redirect("/seats/")
 
     food_cart = FoodCartItem.objects.filter(user=request.user).select_related("food_item")
     food_total = sum((Decimal(str(item.total_price)) for item in food_cart), Decimal("0.00"))
 
     offer_discount = Decimal("0.00")
-    grand_total = ticket_total + food_total
+    grand_total = total_price + food_total
 
     if grand_total >= Decimal("1000.00"):
         offer_discount = Decimal("150.00")
@@ -949,13 +1041,18 @@ def payment_view(request): #Why used: to collect the total amount before payment
         request,
         "booking/payment.html",
         {
+            "show": show,
+            "selected_seats": selected_seats,
+            "total_price": total_price,
+            "razorpay_key": settings.RAZORPAY_KEY_ID,
             "razorpay_key_id": settings.RAZORPAY_KEY_ID,
             "order_id": order["id"],
-            "amount": int(ticket_total),
+            "amount": int(total_price * 100),
             "razorpay_amount": int(final_total * 100),
-            "movie_name": movie_name,
-            "show_time": show_time,
-            "seats": seats,
+            "currency": "INR",
+            "movie_name": show.movie_name,
+            "show_time": show.show_time,
+            "seats": ", ".join(selected_seats),
             "lock_expires_at": lock_expires_at,
             "food_cart": food_cart,
             "food_total": food_total,
@@ -964,14 +1061,13 @@ def payment_view(request): #Why used: to collect the total amount before payment
         },
     )
 
-# ---------------------------
-# PAYMENT success
-# ---------------------------
 
 @csrf_exempt
-def payment_success(request): #to save the booking only after payment is successful.
-    print("SESSION:", dict(request.session))
-
+def payment_success(request):
+    """
+    Save the booking after payment is successful.
+    Works for both online Razorpay and cash flow.
+    """
     seats = request.session.get("selected_seats")
     show_id = request.session.get("show_id")
     total_price = request.session.get("total_price")
@@ -979,7 +1075,6 @@ def payment_success(request): #to save the booking only after payment is success
     razorpay_order_id = request.POST.get("razorpay_order_id", "")
     razorpay_payment_id = request.POST.get("razorpay_payment_id", "")
     razorpay_signature = request.POST.get("razorpay_signature", "")
-
 
     if not seats:
         return HttpResponse("No seats found in session", status=400)
@@ -992,6 +1087,8 @@ def payment_success(request): #to save the booking only after payment is success
     except Show.DoesNotExist:
         return HttpResponse("Invalid show", status=404)
 
+    payment_method = "Razorpay" if razorpay_payment_id else "Cash"
+
     try:
         with transaction.atomic():
             booking = Booking.objects.create(
@@ -1003,7 +1100,7 @@ def payment_success(request): #to save the booking only after payment is success
                 razorpay_order_id=razorpay_order_id,
                 razorpay_payment_id=razorpay_payment_id,
                 payment_status=True,
-                payment_method="Razorpay",
+                payment_method=payment_method,
             )
 
             Seat.objects.filter(
@@ -1022,39 +1119,41 @@ def payment_success(request): #to save the booking only after payment is success
             ]:
                 request.session.pop(key, None)
 
+        # Optional confirmation email
+        try:
+            if request.user.is_authenticated and request.user.email:
+                send_booking_confirmation_email(request.user.email, booking)
+        except Exception as e:
+            print("CONFIRMATION EMAIL ERROR:", e)
+
         return render(request, "booking/payment_success.html", {
             "booking": booking
         })
 
     except Exception as e:
         return HttpResponse(f"Booking failed: {e}", status=500)
-# ---------------------------
-# INITIATE PAYMENT
-# ---------------------------
+
 
 @login_required
-def initiate_payment(request, show_id): #to begin the payment process after seat selection.
+def initiate_payment(request, show_id):
+    """
+    Alternate payment entry point for show-based checkout.
+    """
     show = get_object_or_404(Show, id=show_id)
 
     if request.method == "POST":
-        print("POST DATA:", request.POST)
-
         selected_seats = request.POST.getlist("selected_seats")
-        print("SELECTED SEATS FROM FORM:", selected_seats)
-
         if not selected_seats:
             return HttpResponse("No seats selected", status=400)
 
-        seat_price = Decimal(str(show.price))
-        total_price = seat_price * len(selected_seats)
+        seats_qs = Seat.objects.filter(show=show, seat_number__in=selected_seats)
+        total_price = sum(int(seat.price) for seat in seats_qs)
 
         request.session["selected_seats"] = selected_seats
         request.session["show_id"] = show.id
         request.session["total_price"] = str(total_price)
         request.session.modified = True
         request.session.save()
-
-        print("SESSION SAVED IN INITIATE:", dict(request.session))
 
         client = razorpay.Client(auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET))
 
@@ -1068,24 +1167,33 @@ def initiate_payment(request, show_id): #to begin the payment process after seat
         request.session["razorpay_order_id"] = order["id"]
         request.session.save()
 
-        return render(request, "booking/payment.html", {
-            "show": show,
-            "selected_seats": selected_seats,
-            "total_price": total_price,
-            "order_id": order["id"],
-            "razorpay_key": settings.RAZORPAY_KEY_ID,
-            "amount": int(total_price * 100),
-            "currency": "INR",
-        })
-
+        return render(
+            request,
+            "booking/payment.html",
+            {
+                "show": show,
+                "selected_seats": selected_seats,
+                "total_price": total_price,
+                "order_id": order["id"],
+                "razorpay_key": settings.RAZORPAY_KEY_ID,
+                "razorpay_key_id": settings.RAZORPAY_KEY_ID,
+                "amount": int(total_price * 100),
+                "currency": "INR",
+            },
+        )
 
     return HttpResponse("Invalid request", status=405)
+
+
 # ---------------------------
 # HISTORY / PDF
 # ---------------------------
 
 @login_required
-def my_bookings(request): #to let users see their past tickets
+def my_bookings(request):
+    """
+    Show the user's previous bookings.
+    """
     if BOOKING_HAS_USER_FIELD:
         bookings = Booking.objects.filter(user=request.user).order_by("-booked_at")
     else:
@@ -1095,7 +1203,10 @@ def my_bookings(request): #to let users see their past tickets
 
 
 @login_required
-def download_ticket_pdf(request, booking_id): #to give users a printable ticket.
+def download_ticket_pdf(request, booking_id):
+    """
+    Download a PDF ticket for a booking.
+    """
     booking = get_object_or_404(Booking, id=booking_id)
 
     if BOOKING_HAS_USER_FIELD and not request.user.is_staff and booking.user_id != request.user.id:
@@ -1110,7 +1221,10 @@ def download_ticket_pdf(request, booking_id): #to give users a printable ticket.
 # ---------------------------
 
 @staff_member_required
-def admin_dashboard(request): #to give the admin a quick overview.
+def admin_dashboard(request):
+    """
+    Admin overview dashboard.
+    """
     total_movies = Movie.objects.filter(is_active=True).count()
     total_shows = Show.objects.count()
     total_bookings = Booking.objects.filter(payment_status=True).count()
@@ -1131,13 +1245,19 @@ def admin_dashboard(request): #to give the admin a quick overview.
 
 
 @staff_member_required
-def admin_movies(request): #to manage movies 
+def admin_movies(request):
+    """
+    Admin movie list.
+    """
     movies = Movie.objects.all().order_by("-id")
     return render(request, "booking/admin_movies.html", {"movies": movies})
 
 
 @staff_member_required
-def admin_add_movie(request): #to add movies into ShowTime.
+def admin_add_movie(request):
+    """
+    Admin add movie form.
+    """
     if request.method == "POST":
         title = request.POST.get("title")
         overview = request.POST.get("overview")
@@ -1170,21 +1290,30 @@ def admin_add_movie(request): #to add movies into ShowTime.
 
 
 @staff_member_required
-def admin_delete_movie(request, movie_id): #to remove movies no longer needed
+def admin_delete_movie(request, movie_id):
+    """
+    Delete a movie.
+    """
     movie = get_object_or_404(Movie, id=movie_id)
     movie.delete()
     return redirect("/admin-movies/")
 
 
 @staff_member_required
-def admin_shows(request): #to manage show timings.
+def admin_shows(request):
+    """
+    Admin show list.
+    """
     shows = Show.objects.all().order_by("-id")
     movies = Movie.objects.filter(is_active=True).order_by("title")
     return render(request, "booking/admin_shows.html", {"shows": shows, "movies": movies})
 
 
 @staff_member_required
-def admin_add_show(request): #to add new show slots.
+def admin_add_show(request):
+    """
+    Admin add show form.
+    """
     movies = Movie.objects.filter(is_active=True).order_by("title")
 
     if request.method == "POST":
@@ -1199,14 +1328,20 @@ def admin_add_show(request): #to add new show slots.
 
 
 @staff_member_required
-def admin_delete_show(request, show_id): #to remove unwanted show timings.
+def admin_delete_show(request, show_id):
+    """
+    Delete a show.
+    """
     show = get_object_or_404(Show, id=show_id)
     show.delete()
     return redirect("/admin-shows/")
 
 
 @staff_member_required
-def admin_bookings(request): #to give the admin booking analytics and reports.
+def admin_bookings(request):
+    """
+    Booking analytics and list.
+    """
     bookings = Booking.objects.all().order_by("-booked_at")
 
     total_earnings = Booking.objects.filter(payment_status=True).aggregate(total=Sum("amount"))["total"] or 0
@@ -1278,7 +1413,10 @@ def admin_bookings(request): #to give the admin booking analytics and reports.
 # ---------------------------
 
 @login_required
-def ai_recommend(request): #to give smart, personalized movie recommendations in ShowTime.
+def ai_recommend(request):
+    """
+    Smart recommendations based on query, budget, genres, and user history.
+    """
     query = request.GET.get("q", "").strip().lower()
     budget = request.GET.get("budget", "").strip().lower()
     genre_filter = request.GET.get("genre", "").strip().lower()
@@ -1288,7 +1426,7 @@ def ai_recommend(request): #to give smart, personalized movie recommendations in
     movies = Movie.objects.filter(is_active=True)
     preferred_genres = get_user_preferred_genres(request.user)
     trending_movies = get_trending_movies()
-    trending_ids = [tm.id for tm in trending_movies]
+    trending_ids = [tm["id"] for tm in trending_movies]
 
     if budget in ["low", "medium", "high"] and MOVIE_HAS_BUDGET_FIELD:
         try:
@@ -1470,6 +1608,9 @@ def ai_recommend(request): #to give smart, personalized movie recommendations in
 
 @login_required
 def cancel_booking(request, booking_id):
+    """
+    Cancel a booking and release the seats.
+    """
     if request.method != "POST":
         return redirect("/my-bookings/")
 
@@ -1492,6 +1633,9 @@ def cancel_booking(request, booking_id):
 
 @login_required
 def wishlist_page(request):
+    """
+    Show the user's wishlist.
+    """
     wishlist_items = (
         Wishlist.objects.filter(user=request.user)
         .select_related("movie")
@@ -1507,23 +1651,23 @@ def wishlist_page(request):
 
 @login_required
 def add_to_wishlist(request, movie_id):
+    """
+    Add a movie to wishlist.
+    """
     movie = get_object_or_404(Movie, id=movie_id)
-
     Wishlist.objects.get_or_create(user=request.user, movie=movie)
-
     messages.success(request, f"{movie.title} added to wishlist ❤️")
-
     return redirect(request.META.get("HTTP_REFERER", "/movies/"))
 
 
-@login_required 
-def remove_from_wishlist(request, movie_id): 
+@login_required
+def remove_from_wishlist(request, movie_id):
+    """
+    Remove a movie from wishlist.
+    """
     movie = get_object_or_404(Movie, id=movie_id)
-
     Wishlist.objects.filter(user=request.user, movie=movie).delete()
-
     messages.success(request, f"{movie.title} removed from wishlist")
-
     return redirect(request.META.get("HTTP_REFERER", "/wishlist/"))
 
 
@@ -1531,35 +1675,119 @@ def remove_from_wishlist(request, movie_id):
 # CHATBOT
 # ---------------------------
 
+
+
 @require_POST
-def chatbot_reply(request): #to help users quickly get movie suggestions.
-    data = json.loads(request.body or "{}")
-    message = (data.get("message") or "").lower()
+def chatbot_reply(request):
 
-    reply = "🎬 Try exploring trending movies!"
+    # other code...
 
-    if "horror" in message:
-        reply = "👻 Recommended Horror Movies: The Conjuring, Smile, Insidious, IT."
-    elif "romantic" in message or "romance" in message:
-        reply = "❤️ Romantic Picks: Titanic, The Notebook, La La Land."
-    elif "action" in message:
-        reply = "🔥 Action Movies: John Wick, Mad Max, Extraction."
-    elif "comedy" in message:
-        reply = "😂 Comedy Movies: Deadpool, Hangover, Free Guy."
-    elif "sci" in message or "science fiction" in message:
-        reply = "🚀 Sci-Fi Movies: Interstellar, Dune, Arrival."
-    elif "thriller" in message:
-        reply = "🕵 Thriller Movies: Prisoners, Se7en, Gone Girl."
+    client = OpenAI(
+        api_key=settings.OPENAI_API_KEY
+    )
 
-    return JsonResponse({"reply": reply})
+    response = client.responses.create(
+        model="gpt-5.5",
+        input=message,
+    )
 
+    # ---------------------------
+    # Build live context from your database
+    # ---------------------------
+    today = timezone.localdate()
+
+    upcoming_movies = Movie.objects.filter(
+        is_active=True,
+        release_date__gte=today
+    ).order_by("release_date")[:8]
+
+    top_movies = Movie.objects.filter(is_active=True).order_by("-rating", "-vote_count")[:8]
+
+    upcoming_context = "\n".join(
+        [
+            f"- {m.title} | Release: {m.release_date} | Genre: {m.genre or 'N/A'} | Budget: {getattr(m, 'budget_level', 'N/A')}"
+            for m in upcoming_movies
+        ]
+    ) or "No upcoming movies found."
+
+    top_context = "\n".join(
+        [
+            f"- {m.title} | Genre: {m.genre or 'N/A'} | Rating: {m.rating or 0} | Budget: {getattr(m, 'budget_level', 'N/A')}"
+            for m in top_movies
+        ]
+    ) or "No movies found."
+
+    # Keep a short conversation history in session
+    history = request.session.get("chatbot_history", [])
+    history = history[-6:]  # last few turns only
+
+    system_prompt = f"""
+You are ShowTime AI, a helpful movie and event assistant.
+
+Use the following live ShowTime data when answering:
+UPCOMING MOVIES:
+{upcoming_context}
+
+TOP MOVIES:
+{top_context}
+
+Rules:
+- If the user asks about upcoming movies, mention only from the UPCOMING MOVIES list.
+- If the user asks for release date, use the release date from the data above.
+- If the user asks for budget/genre suggestions, recommend from the TOP MOVIES list if needed.
+- Keep replies short, friendly, and useful.
+- If the data is not enough, say so honestly.
+- Do not invent movie names or release dates.
+"""
+
+    # Build the full prompt from system + short history + current user message
+    prompt_parts = [system_prompt]
+
+    for item in history:
+        role = item.get("role", "user")
+        content = item.get("content", "")
+        prompt_parts.append(f"{role.upper()}: {content}")
+
+    prompt_parts.append(f"USER: {message}")
+    prompt_parts.append("ASSISTANT:")
+
+    prompt = "\n\n".join(prompt_parts)
+
+    try:
+        client = OpenAI()
+        response = client.responses.create(
+            model="gpt-5.5",
+            input=prompt,
+        )
+        reply = (response.output_text or "").strip()
+
+        if not reply:
+            reply = "I could not generate a reply right now."
+
+        # Save chat history
+        history.append({"role": "user", "content": message})
+        history.append({"role": "assistant", "content": reply})
+        request.session["chatbot_history"] = history[-10:]
+        request.session.modified = True
+
+        return JsonResponse({"reply": reply})
+
+    except Exception as e:
+        print("OpenAI chatbot error:", repr(e))
+        return JsonResponse(
+            {"reply": "Sorry, the chatbot is unavailable right now."},
+            status=500,
+        )
 
 # ---------------------------
 # FOOD OFFERS
 # ---------------------------
 
 @login_required
-def food_offers(request): #to let users buy snacks with tickets.
+def food_offers(request):
+    """
+    Show food items and cart items.
+    """
     food_items = FoodItem.objects.filter(is_available=True)
     cart_items = FoodCartItem.objects.filter(user=request.user).select_related("food_item")
     cart_total = sum(item.total_price for item in cart_items)
@@ -1576,7 +1804,10 @@ def food_offers(request): #to let users buy snacks with tickets.
 
 
 @login_required
-def add_food_to_cart(request, food_id): #to build the food order.
+def add_food_to_cart(request, food_id):
+    """
+    Add food item to cart.
+    """
     if request.method != "POST":
         return redirect("food_offers")
 
@@ -1596,7 +1827,10 @@ def add_food_to_cart(request, food_id): #to build the food order.
 
 
 @login_required
-def remove_food_from_cart(request, food_id): #to delete food from order.
+def remove_food_from_cart(request, food_id):
+    """
+    Remove food item from cart.
+    """
     if request.method != "POST":
         return redirect("food_offers")
 
@@ -1607,7 +1841,10 @@ def remove_food_from_cart(request, food_id): #to delete food from order.
 
 
 @login_required
-def update_food_qty(request, food_id, action): #to manage cart items properly.
+def update_food_qty(request, food_id, action):
+    """
+    Increase/decrease food quantity.
+    """
     if request.method != "POST":
         return redirect("food_offers")
 
@@ -1635,7 +1872,10 @@ def update_food_qty(request, food_id, action): #to manage cart items properly.
 # ---------------------------
 
 @staff_member_required
-def verify_ticket(request, booking_id): #to stop ticket misuse at entry.
+def verify_ticket(request, booking_id):
+    """
+    Mark a booking ticket as used.
+    """
     booking = get_object_or_404(Booking, id=booking_id)
 
     if request.method == "POST":
@@ -1659,11 +1899,13 @@ def verify_ticket(request, booking_id): #to stop ticket misuse at entry.
 # TICKETMASTER LIVE EVENTS
 # ---------------------------
 
-
 TICKETMASTER_BASE_URL = "https://app.ticketmaster.com/discovery/v2"
 
 
-def _ticketmaster_get(path: str, params: dict | None = None): #to fetch live event data.
+def _ticketmaster_get(path: str, params: dict | None = None):
+    """
+    Small wrapper around Ticketmaster Discovery API.
+    """
     api_key = getattr(settings, "TICKETMASTER_API_KEY", None)
     if not api_key:
         return None
@@ -1682,7 +1924,32 @@ def _ticketmaster_get(path: str, params: dict | None = None): #to fetch live eve
         return None
 
 
-def _normalize_ticketmaster_event(item: dict, category: str): #to make API data easy to show in templates.
+def _dedupe_ticketmaster_events(raw_events):
+    """
+    Prevent repeated similar cards by keeping one event per title + venue.
+    """
+    seen = set()
+    unique_events = []
+
+    for item in raw_events:
+        title = (item.get("name") or "").strip().lower()
+        venues = item.get("_embedded", {}).get("venues", [])
+        venue_name = (venues[0].get("name", "") if venues else "").strip().lower()
+        key = (title, venue_name)
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+        unique_events.append(item)
+
+    return unique_events
+
+
+def _normalize_ticketmaster_event(item: dict, category: str):
+    """
+    Convert Ticketmaster JSON into a simple dict for templates.
+    """
     images = item.get("images", [])
     poster_path = images[0].get("url", "") if images else ""
 
@@ -1700,14 +1967,18 @@ def _normalize_ticketmaster_event(item: dict, category: str): #to make API data 
         or ""
     )
 
-    price = 0
+    price_value = None
+    price_display = "Price TBA"
+
     price_ranges = item.get("priceRanges", [])
     if price_ranges:
-        raw_price = price_ranges[0].get("min") or price_ranges[0].get("max") or 0
+        raw_price = price_ranges[0].get("min") or price_ranges[0].get("max")
         try:
-            price = int(float(raw_price))
+            if raw_price is not None:
+                price_value = int(float(raw_price))
+                price_display = f"₹{price_value}"
         except (TypeError, ValueError):
-            price = 0
+            pass
 
     event_id = item.get("id", "")
 
@@ -1721,7 +1992,8 @@ def _normalize_ticketmaster_event(item: dict, category: str): #to make API data 
         "date": local_date,
         "time": local_time,
         "venue": venue,
-        "price": price,
+        "price": price_value,
+        "price_display": price_display,
         "ticket_url": item.get("url", ""),
         "highlights": [
             venue or "Venue TBA",
@@ -1731,51 +2003,114 @@ def _normalize_ticketmaster_event(item: dict, category: str): #to make API data 
     }
 
 
-def events(request): #to add events section in ShowTime.
+def events(request):
+    """
+    Live Ticketmaster events page.
+
+    Comedy section is expanded using multiple genre-specific searches:
+    - stand up comedy
+    - roast battle
+    - improv comedy
+    - sketch comedy
+    - open mic comedy
+
+    Music section stays as before.
+    """
     q = request.GET.get("q", "").strip()
     country = request.GET.get("country", "US").strip().upper()
 
-    comedy_keyword = f"{q} comedy".strip() if q else "comedy"
-    music_keyword = f"{q} music".strip() if q else "music"
+    # ---------------------------
+    # COMEDY: genre-specific searches
+    # ---------------------------
+    comedy_keywords = [
+        "stand up comedy",
+        "roast battle",
+        "improv comedy",
+        "sketch comedy",
+        "open mic comedy",
+    ]
 
-    base_params = {
+    comedy_raw = []
+
+    for keyword in comedy_keywords:
+        comedy_params = {
+            "size": 12,
+            "classificationName": "Comedy",
+        }
+
+        if country:
+            comedy_params["countryCode"] = country
+
+        # If user typed something in search, combine it with the genre keyword
+        # Example: "delhi stand up comedy"
+        if q:
+            comedy_params["keyword"] = f"{q} {keyword}"
+        else:
+            comedy_params["keyword"] = keyword
+
+        comedy_payload = _ticketmaster_get("/events.json", comedy_params)
+
+        events_list = (
+            comedy_payload.get("_embedded", {}).get("events", [])
+            if comedy_payload
+            else []
+        )
+
+        comedy_raw.extend(events_list)
+
+    # ---------------------------
+    # MUSIC: keep normal search
+    # ---------------------------
+    music_params = {
         "size": 12,
+        "classificationName": "Music",
     }
 
     if country:
-        base_params["countryCode"] = country
+        music_params["countryCode"] = country
 
-    comedy_payload = _ticketmaster_get("/events.json", {
-        **base_params,
-        "keyword": comedy_keyword,
-    })
+    if q:
+        music_params["keyword"] = q
 
-    music_payload = _ticketmaster_get("/events.json", {
-        **base_params,
-        "keyword": music_keyword,
-    })
+    music_payload = _ticketmaster_get("/events.json", music_params)
 
-    comedy_raw = comedy_payload.get("_embedded", {}).get("events", []) if comedy_payload else []
-    music_raw = music_payload.get("_embedded", {}).get("events", []) if music_payload else []
+    music_raw = (
+        music_payload.get("_embedded", {}).get("events", [])
+        if music_payload
+        else []
+    )
 
+    # ---------------------------
+    # Remove duplicate events
+    # ---------------------------
+    comedy_raw = _dedupe_ticketmaster_events(comedy_raw)
+    music_raw = _dedupe_ticketmaster_events(music_raw)
+
+    # ---------------------------
+    # Normalize for templates
+    # ---------------------------
     comedy_events = [_normalize_ticketmaster_event(item, "Comedy") for item in comedy_raw]
     music_events = [_normalize_ticketmaster_event(item, "Music") for item in music_raw]
 
-    return render(request, "booking/events.html", {
-        "comedy_events": comedy_events,
-        "music_events": music_events,
-        "q": q,
-        "country": country,
-    })
+    return render(
+        request,
+        "booking/events.html",
+        {
+            "comedy_events": comedy_events,
+            "music_events": music_events,
+            "q": q,
+            "country": country,
+        },
+    )
 
-
-def event_detail(request, slug): #To open a full event page.
+def event_detail(request, slug):
+    """
+    Live Ticketmaster event detail page.
+    """
     payload = _ticketmaster_get(f"/events/{slug}.json")
 
     if not payload:
-        return render(request, "booking/event_detail.html", {
-            "event": None
-        })
+        return render(request, "booking/event_detail.html", {"event": None})
 
     classifications = payload.get("classifications", [])
     category = "Event"
@@ -1786,6 +2121,8 @@ def event_detail(request, slug): #To open a full event page.
 
     event = _normalize_ticketmaster_event(payload, category)
 
-    return render(request, "booking/event_detail.html", {
-        "event": event
-    })
+    return render(
+        request,
+        "booking/event_detail.html",
+        {"event": event},
+    )

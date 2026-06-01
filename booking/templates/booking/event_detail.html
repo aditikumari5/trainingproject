@@ -221,10 +221,20 @@
 
                 <div class="info-row">
                     <span>Price</span>
-                    <span>₹{{ event.price }}</span>
+                    <span>{{ event.price_display }}</span>
                 </div>
 
-                <a href="{% url 'events' %}" class="book-btn">
+                {% if event.ticket_url %}
+                    <a
+                        href="{{ event.ticket_url }}"
+                        target="_blank"
+                        class="book-btn"
+                    >
+                        Book On Ticketmaster
+                    </a>
+                {% endif %}
+
+                <a href="{% url 'events' %}" class="secondary-btn">
                     Explore More Events
                 </a>
 

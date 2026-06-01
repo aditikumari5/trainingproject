@@ -246,6 +246,7 @@ body{
             <option value="GB" {% if country == "GB" %}selected{% endif %}>United Kingdom</option>
             <option value="CA" {% if country == "CA" %}selected{% endif %}>Canada</option>
             <option value="AU" {% if country == "AU" %}selected{% endif %}>Australia</option>
+            <option value="IN" {% if country == "IN" %}selected{% endif %}>India</option>
         </select>
 
         <button type="submit">Filter</button>
@@ -294,7 +295,7 @@ body{
                             </div>
 
                             <div class="event-price">
-                                ₹{{ event.price }}
+                                {{ event.price_display }}
                             </div>
 
                             <div class="event-badge">
@@ -350,7 +351,7 @@ body{
                             </div>
 
                             <div class="event-price">
-                                ₹{{ event.price }}
+                                {{ event.price_display }}
                             </div>
 
                             <div class="event-badge">
