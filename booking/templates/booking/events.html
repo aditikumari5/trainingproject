@@ -254,118 +254,116 @@ body{
         <a href="{% url 'events' %}">Reset</a>
     </form>
 
-    <!-- COMEDY -->
-    <div class="event-section">
-        <h2>Comedy Shows</h2>
+    <!-- COMEDY SECTIONS -->
+    {% for section in comedy_sections %}
+        <div class="event-section">
+            <h2>{{ section.title }}</h2>
 
-        <div class="event-section-desc">
-            Enjoy stand-up comedy, roast battles, improv nights,
-            sketch comedy, open mic performances and more.
-        </div>
+            <div class="event-section-desc">
+                {{ section.description }}
+            </div>
 
-        <div class="event-grid">
-            {% for event in comedy_events %}
-                <a href="{% url 'event_detail' event.slug %}" class="event-card-link">
-                    <div class="event-card">
-                        <div class="event-poster">
-                            {% if event.poster_path %}
-                                <img src="{{ event.poster_path }}" alt="{{ event.title }}">
-                            {% else %}
-                                <div class="poster-placeholder">
-                                    {{ event.title }}
+            <div class="event-grid">
+                {% for event in section.events %}
+                    <a href="{% url 'event_detail' event.slug %}" class="event-card-link">
+                        <div class="event-card">
+                            <div class="event-poster">
+                                {% if event.poster_path %}
+                                    <img src="{{ event.poster_path }}" alt="{{ event.title }}">
+                                {% else %}
+                                    <div class="poster-placeholder">
+                                        {{ event.title }}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="event-body">
+                                <h3>{{ event.title }}</h3>
+
+                                <p>
+                                    {{ event.description|truncatechars:120 }}
+                                </p>
+
+                                <div class="event-meta">
+                                    📍 {{ event.venue|default:"Venue TBA" }}
                                 </div>
-                            {% endif %}
-                        </div>
 
-                        <div class="event-body">
-                            <h3>{{ event.title }}</h3>
+                                <div class="event-meta">
+                                    📅 {{ event.date|default:"Date TBA" }}
+                                    •
+                                    ⏰ {{ event.time|default:"Time TBA" }}
+                                </div>
 
-                            <p>
-                                {{ event.description|truncatechars:120 }}
-                            </p>
+                                <div class="event-price">
+                                    {{ event.price_display }}
+                                </div>
 
-                            <div class="event-meta">
-                                📍 {{ event.venue|default:"Venue TBA" }}
-                            </div>
-
-                            <div class="event-meta">
-                                📅 {{ event.date|default:"Date TBA" }}
-                                •
-                                ⏰ {{ event.time|default:"Time TBA" }}
-                            </div>
-
-                            <div class="event-price">
-                                {{ event.price_display }}
-                            </div>
-
-                            <div class="event-badge">
-                                Comedy
+                                <div class="event-badge">
+                                    {{ event.category|default:section.badge }}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </a>
-            {% empty %}
-                <p class="event-empty">No comedy events available.</p>
-            {% endfor %}
+                    </a>
+                {% empty %}
+                    <p class="event-empty">No {{ section.badge|lower }} events available.</p>
+                {% endfor %}
+            </div>
         </div>
-    </div>
+    {% endfor %}
 
     <!-- MUSIC -->
-    <div class="event-section">
-        <h2>Music Shows</h2>
+<div class="event-section">
+    <h2>Music Shows</h2>
 
-        <div class="event-section-desc">
-            Discover concerts, music festivals, acoustic nights,
-            club gigs, indie performances and EDM events.
-        </div>
-
-        <div class="event-grid">
-            {% for event in music_events %}
-                <a href="{% url 'event_detail' event.slug %}" class="event-card-link">
-                    <div class="event-card music-theme">
-                        <div class="event-poster">
-                            {% if event.poster_path %}
-                                <img src="{{ event.poster_path }}" alt="{{ event.title }}">
-                            {% else %}
-                                <div class="poster-placeholder">
-                                    {{ event.title }}
-                                </div>
-                            {% endif %}
-                        </div>
-
-                        <div class="event-body">
-                            <h3>{{ event.title }}</h3>
-
-                            <p>
-                                {{ event.description|truncatechars:120 }}
-                            </p>
-
-                            <div class="event-meta">
-                                📍 {{ event.venue|default:"Venue TBA" }}
-                            </div>
-
-                            <div class="event-meta">
-                                📅 {{ event.date|default:"Date TBA" }}
-                                •
-                                ⏰ {{ event.time|default:"Time TBA" }}
-                            </div>
-
-                            <div class="event-price">
-                                {{ event.price_display }}
-                            </div>
-
-                            <div class="event-badge">
-                                Music
-                            </div>
-                        </div>
-                    </div>
-                </a>
-            {% empty %}
-                <p class="event-empty">No music events available.</p>
-            {% endfor %}
-        </div>
+    <div class="event-section-desc">
+        Enjoy concerts, music festivals, and club gigs.
     </div>
 
+    <div class="event-grid">
+        {% for event in music_events %}
+            <a href="{% url 'event_detail' event.slug %}" class="event-card-link">
+                <div class="event-card music-theme">
+                    <div class="event-poster">
+                        {% if event.poster_path %}
+                            <img src="{{ event.poster_path }}" alt="{{ event.title }}">
+                        {% else %}
+                            <div class="poster-placeholder">
+                                {{ event.title }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="event-body">
+                        <h3>{{ event.title }}</h3>
+
+                        <p>
+                            {{ event.description|truncatechars:120 }}
+                        </p>
+
+                        <div class="event-meta">
+                            📍 {{ event.venue|default:"Venue TBA" }}
+                        </div>
+
+                        <div class="event-meta">
+                            📅 {{ event.date|default:"Date TBA" }}
+                            •
+                            ⏰ {{ event.time|default:"Time TBA" }}
+                        </div>
+
+                        <div class="event-price">
+                            {{ event.price_display }}
+                        </div>
+
+                        <div class="event-badge">
+                            {{ event.category|default:"Music" }}
+                        </div>
+                    </div>
+                </div>
+            </a>
+        {% empty %}
+            <p class="event-empty">No music events available.</p>
+        {% endfor %}
+    </div>
 </div>
 
 {% endblock %}

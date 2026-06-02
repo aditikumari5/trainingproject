@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+body{
+    background:#0f0f0f;
+    color:white;
+    font-family:Arial,sans-serif;
+}
+
+.explore-container{
+    width:90%;
+    max-width:1280px;
+    margin:40px auto;
+}
+
+.hero{
+    background:linear-gradient(135deg,#181818,#0f0f0f);
+    border:1px solid rgba(255,255,255,.06);
+    border-radius:28px;
+    padding:32px;
+    margin-bottom:30px;
+    box-shadow:0 10px 30px rgba(0,0,0,.3);
+}
+
+.hero h1{
+    font-size:46px;
+    margin-bottom:10px;
+}
+
+.hero p{
+    color:#bbb;
+    line-height:1.7;
+    font-size:16px;
+}
+
+.section{
+    margin-bottom:40px;
+    background:#181818;
+    border-radius:28px;
+    padding:28px;
+    box-shadow:0 10px 30px rgba(0,0,0,.3);
+    border:1px solid rgba(255,255,255,.05);
+}
+
+.section h2{
+    font-size:34px;
+    color:#ff4d4d;
+    margin-bottom:10px;
+}
+
+.section-desc{
+    color:#bbb;
+    line-height:1.7;
+    margin-bottom:22px;
+}
+
+.chips{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+}
+
+.chip{
+    display:inline-block;
+    padding:10px 16px;
+    border-radius:999px;
+    text-decoration:none;
+    color:white;
+    background:#232323;
+    border:1px solid rgba(255,255,255,.08);
+    transition:.25s;
+    font-size:14px;
+    font-weight:600;
+}
+
+.chip:hover{
+    transform:translateY(-2px);
+    background:#2b2b2b;
+    border-color:rgba(255,77,77,.35);
+}
+
+.section-footer{
+    margin-top:18px;
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+}
+
+.small-link{
+    text-decoration:none;
+    color:#ff4d4d;
+    font-weight:bold;
+}
+
+@media(max-width:768px){
+    .hero h1{
+        font-size:32px;
+    }
+
+    .section h2{
+        font-size:26px;
+    }
+}
+</style>
+
+<div class="explore-container">
+
+    <div class="hero">
+        <h1>Explore All Categories</h1>
+        <p>
+            Discover comedy, music, plays, sports, workshops, adventure, meetups, gaming, nightlife, conferences, and more in one place.
+        </p>
+    </div>
+
+    {% for section in sections %}
+        <div class="section">
+            <h2>{{ section.title }}</h2>
+            <div class="section-desc">{{ section.description }}</div>
+
+            <div class="chips">
+                {% for item in section.items %}
+                    <a href="{% url 'events' %}?q={{ item.1|urlencode }}" class="chip">
+                        {{ item.0 }}
+                    </a>
+                {% endfor %}
+            </div>
+
+            <div class="section-footer">
+                <a class="small-link" href="{% url 'events' %}?q={{ section.title|urlencode }}">
+                    View more {{ section.title }}
+                </a>
+            </div>
+        </div>
+    {% endfor %}
+
+</div>
+
+{% endblock %}

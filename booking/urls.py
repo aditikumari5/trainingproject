@@ -157,4 +157,6 @@ urlpatterns = [
 
     path("events/<slug:slug>/", views.event_detail, name="event_detail"),
 
+    path("explore/", views.explore, name="explore"),
+
 ]

@@ -1679,52 +1679,51 @@ def remove_from_wishlist(request, movie_id):
 
 @require_POST
 def chatbot_reply(request):
+    try:
+        data = json.loads(request.body or "{}")
+        message = (data.get("message") or "").strip()
 
-    # other code...
+        if not message:
+            return JsonResponse({"reply": "Please enter a message."}, status=400)
 
-    client = OpenAI(
-        api_key=settings.OPENAI_API_KEY
-    )
+        if not getattr(settings, "OPENAI_API_KEY", None):
+            return JsonResponse(
+                {"reply": "OpenAI API key is missing."},
+                status=500,
+            )
 
-    response = client.responses.create(
-        model="gpt-5.5",
-        input=message,
-    )
+        today = timezone.localdate()
 
-    # ---------------------------
-    # Build live context from your database
-    # ---------------------------
-    today = timezone.localdate()
+        upcoming_movies = Movie.objects.filter(
+            is_active=True,
+            release_date__gte=today,
+        ).order_by("release_date")[:8]
 
-    upcoming_movies = Movie.objects.filter(
-        is_active=True,
-        release_date__gte=today
-    ).order_by("release_date")[:8]
+        top_movies = Movie.objects.filter(
+            is_active=True
+        ).order_by("-rating", "-vote_count")[:8]
 
-    top_movies = Movie.objects.filter(is_active=True).order_by("-rating", "-vote_count")[:8]
+        upcoming_context = "\n".join(
+            [
+                f"- {m.title} | Release: {m.release_date} | Genre: {m.genre or 'N/A'} | Budget: {getattr(m, 'budget_level', 'N/A')}"
+                for m in upcoming_movies
+            ]
+        ) or "No upcoming movies found."
 
-    upcoming_context = "\n".join(
-        [
-            f"- {m.title} | Release: {m.release_date} | Genre: {m.genre or 'N/A'} | Budget: {getattr(m, 'budget_level', 'N/A')}"
-            for m in upcoming_movies
-        ]
-    ) or "No upcoming movies found."
+        top_context = "\n".join(
+            [
+                f"- {m.title} | Genre: {m.genre or 'N/A'} | Rating: {m.rating or 0} | Budget: {getattr(m, 'budget_level', 'N/A')}"
+                for m in top_movies
+            ]
+        ) or "No movies found."
 
-    top_context = "\n".join(
-        [
-            f"- {m.title} | Genre: {m.genre or 'N/A'} | Rating: {m.rating or 0} | Budget: {getattr(m, 'budget_level', 'N/A')}"
-            for m in top_movies
-        ]
-    ) or "No movies found."
+        history = request.session.get("chatbot_history", [])[-6:]
 
-    # Keep a short conversation history in session
-    history = request.session.get("chatbot_history", [])
-    history = history[-6:]  # last few turns only
-
-    system_prompt = f"""
+        system_prompt = f"""
 You are ShowTime AI, a helpful movie and event assistant.
 
 Use the following live ShowTime data when answering:
+
 UPCOMING MOVIES:
 {upcoming_context}
 
@@ -1740,31 +1739,27 @@ Rules:
 - Do not invent movie names or release dates.
 """
 
-    # Build the full prompt from system + short history + current user message
-    prompt_parts = [system_prompt]
+        prompt_parts = [system_prompt]
+        for item in history:
+            role = item.get("role", "user")
+            content = item.get("content", "")
+            prompt_parts.append(f"{role.upper()}: {content}")
 
-    for item in history:
-        role = item.get("role", "user")
-        content = item.get("content", "")
-        prompt_parts.append(f"{role.upper()}: {content}")
+        prompt_parts.append(f"USER: {message}")
+        prompt_parts.append("ASSISTANT:")
+        prompt = "\n\n".join(prompt_parts)
 
-    prompt_parts.append(f"USER: {message}")
-    prompt_parts.append("ASSISTANT:")
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
-    prompt = "\n\n".join(prompt_parts)
-
-    try:
-        client = OpenAI()
         response = client.responses.create(
-            model="gpt-5.5",
+            model="gpt-4.1-mini",
             input=prompt,
         )
-        reply = (response.output_text or "").strip()
 
+        reply = (response.output_text or "").strip()
         if not reply:
             reply = "I could not generate a reply right now."
 
-        # Save chat history
         history.append({"role": "user", "content": message})
         history.append({"role": "assistant", "content": reply})
         request.session["chatbot_history"] = history[-10:]
@@ -1773,12 +1768,11 @@ Rules:
         return JsonResponse({"reply": reply})
 
     except Exception as e:
-        print("OpenAI chatbot error:", repr(e))
+        print("CHATBOT ERROR:", repr(e))
         return JsonResponse(
             {"reply": "Sorry, the chatbot is unavailable right now."},
             status=500,
         )
-
 # ---------------------------
 # FOOD OFFERS
 # ---------------------------
@@ -2003,36 +1997,61 @@ def _normalize_ticketmaster_event(item: dict, category: str):
     }
 
 
+# ---------------------------
+# EVENTS 
+# ---------------------------
 def events(request):
     """
     Live Ticketmaster events page.
 
-    Comedy section is expanded using multiple genre-specific searches:
-    - stand up comedy
-    - roast battle
-    - improv comedy
-    - sketch comedy
-    - open mic comedy
+    Comedy is split into separate sections:
+    - Stand-Up
+    - Roast
+    - Improv
+    - Sketch
+    - Open Mic
 
-    Music section stays as before.
+    Music stays as one section.
     """
     q = request.GET.get("q", "").strip()
     country = request.GET.get("country", "US").strip().upper()
 
-    # ---------------------------
-    # COMEDY: genre-specific searches
-    # ---------------------------
-    comedy_keywords = [
-        "stand up comedy",
-        "roast battle",
-        "improv comedy",
-        "sketch comedy",
-        "open mic comedy",
+    comedy_specs = [
+        {
+            "title": "Stand-Up Shows",
+            "badge": "Stand-Up",
+            "keyword": "stand up comedy",
+            "description": "Enjoy stand-up specials, club sets, live punchlines, and comedy nights.",
+        },
+        {
+            "title": "Roast Shows",
+            "badge": "Roast",
+            "keyword": "roast comedy",
+            "description": "Sharp one-liners, roast battles, and crowd-favorite comedy showdowns.",
+        },
+        {
+            "title": "Improv Shows",
+            "badge": "Improv",
+            "keyword": "improv comedy",
+            "description": "Unscripted comedy, spontaneous scenes, and live improv performances.",
+        },
+        {
+            "title": "Sketch Shows",
+            "badge": "Sketch",
+            "keyword": "sketch comedy",
+            "description": "Short comedy acts, sketch performances, and hilarious stage scenes.",
+        },
+        {
+            "title": "Open Mic Shows",
+            "badge": "Open Mic",
+            "keyword": "open mic comedy",
+            "description": "Fresh comics, open mic nights, and up-and-coming stand-up talent.",
+        },
     ]
 
-    comedy_raw = []
+    comedy_sections = []
 
-    for keyword in comedy_keywords:
+    for spec in comedy_specs:
         comedy_params = {
             "size": 12,
             "classificationName": "Comedy",
@@ -2041,25 +2060,37 @@ def events(request):
         if country:
             comedy_params["countryCode"] = country
 
-        # If user typed something in search, combine it with the genre keyword
-        # Example: "delhi stand up comedy"
         if q:
-            comedy_params["keyword"] = f"{q} {keyword}"
+            comedy_params["keyword"] = f"{q} {spec['keyword']}"
         else:
-            comedy_params["keyword"] = keyword
+            comedy_params["keyword"] = spec["keyword"]
 
         comedy_payload = _ticketmaster_get("/events.json", comedy_params)
 
-        events_list = (
+        comedy_raw = (
             comedy_payload.get("_embedded", {}).get("events", [])
             if comedy_payload
             else []
         )
 
-        comedy_raw.extend(events_list)
+        comedy_raw = _dedupe_ticketmaster_events(comedy_raw)
+
+        comedy_events = [
+            _normalize_ticketmaster_event(item, spec["badge"])
+            for item in comedy_raw
+        ]
+
+        comedy_sections.append(
+            {
+                "title": spec["title"],
+                "description": spec["description"],
+                "badge": spec["badge"],
+                "events": comedy_events,
+            }
+        )
 
     # ---------------------------
-    # MUSIC: keep normal search
+    # MUSIC
     # ---------------------------
     music_params = {
         "size": 12,
@@ -2080,7 +2111,20 @@ def events(request):
         else []
     )
 
-    # ---------------------------
+    music_raw = _dedupe_ticketmaster_events(music_raw)
+    music_events = [_normalize_ticketmaster_event(item, "Music") for item in music_raw]
+
+    return render(
+        request,
+        "booking/events.html",
+        {
+            "comedy_sections": comedy_sections,
+            "music_events": music_events,
+            "q": q,
+            "country": country,
+        },
+    )
+    # --------------------------- 
     # Remove duplicate events
     # ---------------------------
     comedy_raw = _dedupe_ticketmaster_events(comedy_raw)
@@ -2126,3 +2170,198 @@ def event_detail(request, slug):
         "booking/event_detail.html",
         {"event": event},
     )
+# ---------------------------
+# EXPLORE OTHER EVENTS
+# ---------------------------
+def explore(request):
+    """
+    Explore page with BookMyShow-style category sections.
+    """
+
+    sections = [
+        {
+            "title": "Comedy Shows",
+            "description": "Stand-up, Roast, Improv, Sketch and Open Mic shows.",
+            "items": [
+                ("Stand-up", "stand-up comedy"),
+                ("Roast", "roast comedy"),
+                ("Improv", "improv comedy"),
+                ("Sketch", "sketch comedy"),
+                ("Open Mic", "open mic comedy"),
+            ],
+        },
+
+        {
+            "title": "Music Shows",
+            "description": "Concerts, Music Festivals, Club gigs.",
+            "items": [
+                ("Concerts", "Concert"),
+                ("Music Festivals", "music festival"),
+                ("Club Gigs", "club gigs"),
+            ],
+        },
+        
+        {
+            "title": "Plays",
+            "description": "Story Telling, Theatre, Interactive Theatre, Improv Theatre.",
+            "items": [
+                ("Story Telling", "story telling"),
+                ("Theatre", "theatre"),
+                ("Interactive Theatre", "interactive theatre"),
+                ("Improv Theatre", "improv theatre"),
+            ],
+        },
+
+        {
+            "title": "Sports",
+            "description": "Bowling, Chess, Online Sports, Cricket, Football, Basketball, Wrestling, Walking, Running, Shooting, Car Racing.",
+            "items": [
+                ("Bowling", "bowling"),
+                ("Chess", "chess"),
+                ("Online Sports", "online sports"),
+                ("Cricket", "cricket"),
+                ("Football", "football"),
+                ("Basketball", "basketball"),
+                ("wrestling", "wrestling"),
+                ("Walking", "walking"),
+                ("Running", "running"),
+                ("Shooting", "shooting"),
+                ("Car Racing", "car racing"),
+            ],
+        },
+
+        {
+            "title": "Amusement Parks",
+            "description": "Water Parks, Resorts, Snow Parks, Theme Parks.",
+            "items": [
+                ("Water Parks", "water park"),
+                ("Resorts", "resort"),
+                ("Snow Parks", "snow park"),
+                ("Theme Parks", "theme park"),
+            ],
+        },
+
+        {
+            "title": "Adventures",
+            "description": "Adventure Parks, Camping, Trekking, Safari, Sailing, Paragliding, Rafting.",
+            "items": [
+                ("Adventure Parks", "adventure parks"),
+                ("Camping", "camping"),
+                ("Trekking", "trekking"),
+                ("Safari", "safari"),
+                ("Sailing", "sailing"),
+                ("Paragliding", "paragliding"),
+                ("Rafting", "rafting"),
+            ],
+        },
+        
+        {
+            "title": "Workshops",
+            "description": "Acting, Business, Comedy, Fashion & Beauty, Performing Arts, Gaming, Master Class, Storytelling, Upskill, Wellness, Theatre, Book Literature, Technology, Painting, Health & Fitness, Education, Jewellery, Dance, Photography, Yoga, Environment, Music, Food & Drinks, Magic, Poetry.",
+            "items": [
+                ("Acting", "acting"),
+                ("Business", "business"),
+                ("Comedy", "comedy"),
+                ("Fashion & Beauty", "fashion & beauty"),
+                ("Performing Arts", "performing arts"),
+                ("Gaming", "gaming"),
+                ("Master Class", "master class"),
+                ("StoryTelling", "storytelling"),
+                ("UpSkills", "upskill"),
+                ("Wellness", "wellness"),
+                ("Theatre", "theatre"),
+                ("Book Literature", "book literature"),
+                ("Technology", "technology"),
+                ("Painting", "painting"),
+                ("Health & Fitness", "health & fitness"),
+                ("Education", "education"),
+                ("Jewellery", "jewellery"),
+                ("Dance", "dance"),
+                ("Photography", "photography"),
+                ("Yoga", "yoga"),
+                ("Environment", "environment"),
+                ("Music", "music"),
+                ("Food & Drinks", "food & drink"),
+                ("Magic", "magic"),
+                ("Poetry", "poetry"),
+            ],
+        },
+        
+        {
+            "title": "Kid Zone",
+            "description": "Competition, Education, Hobby Classes, Fun Activities.",
+            "items": [
+                ("Competition", "competition"),
+                ("Education", "education"),
+                ("Hobby Classes", "hobby classes"),
+                ("Fun ACtivities", "fun activities"),
+            ],
+        },
+
+        {
+            "title": "Stream",
+            "description": "Language, Coming Soon, Free Movies, Premiere.",
+            "items": [
+                ("Language", "language"),
+                ("Coming Soon", "coming soon"),
+                ("Free Movies", "free movies"),
+                ("Premiere", "premiere"),
+            ],
+        },
+
+        {
+            "title": "Performances",
+            "description": "Book Reading, Dance, Magic, Music, Poetry.",
+            "items": [
+                ("Book Reading", "book reading"),
+                ("Dance", "dance"),
+                ("Magic", "magic"),
+                ("Music", "music"),
+                ("Poetry", "poetry"),
+            ],
+        },
+
+        {
+            "title": "Meetups",
+            "description": "Business, Self Improvement, Music, Photography, Poetry, Storytelling.",
+            "items": [
+                ("Business", "business"),
+                ("Self Improvement", "self improvement"),
+                ("Music", "music"),
+                ("Photography", "photography"),
+                ("Poetry", "poetry"),
+                ("Storytelling", "storytelling"),
+            ],
+        },
+
+        {
+            "title": "Gaming",
+            "description": "Gaming events, tournaments, and community meetups.",
+            "items": [
+                ("Gaming Events", "gaming"),
+            ],
+        },
+
+        {
+            "title": "NightLife",
+            "description": "DJ nights, party events, club nights, and late-evening fun.",
+            "items": [
+                ("DJ Nights", "dj night"),
+                ("Party Events", "party"),
+                ("Club Nights", "club night"),
+            ],
+        },
+        
+        {
+            "title": "Conferences",
+            "description": "Business conferences, tech talks, summits, and seminars.",
+            "items": [
+                ("Business Conference", "business conference"),
+                ("Tech Conference", "tech conference"),
+                ("Summit", "summit"),
+                ("Seminar", "seminar"),
+            ],
+        },
+
+    ]
+    return render(request, "booking/explore.html", {"sections": sections})
