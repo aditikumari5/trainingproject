@@ -186,6 +186,6 @@ SESSION_SAVE_EVERY_REQUEST = True
 
 
 # -------------------------
-# OPEN API KEY
+# SUPPORT ADMIN EMAIL
 # -------------------------
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+SUPPORT_ADMIN_EMAIL = os.getenv("SUPPORT_ADMIN_EMAIL", DEFAULT_FROM_EMAIL)

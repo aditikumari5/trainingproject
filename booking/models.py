@@ -1,7 +1,7 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.conf import settings
-
+from django.contrib import admin
 
 
 class Payment(models.Model):
@@ -165,37 +165,54 @@ class FoodCartItem(models.Model):
     
 
 class Event(models.Model):
-
-    EVENT_TYPES = [
+    EVENT_TYPE_CHOICES = [
         ("COMEDY", "Comedy"),
         ("MUSIC", "Music"),
     ]
 
     title = models.CharField(max_length=200)
+    slug = models.SlugField(
+    unique=True,
+    blank=True,
+    null=True
+)
 
     event_type = models.CharField(
         max_length=20,
-        choices=EVENT_TYPES
+        choices=EVENT_TYPE_CHOICES
     )
 
-    description = models.TextField()
+    description = models.TextField(
+        blank=True,
+        default=""
+    )
 
     poster_path = models.CharField(
         max_length=500,
+        blank=True,
+        default=""
+    )
+
+    date = models.DateField(
+        null=True,
         blank=True
     )
 
-    venue = models.CharField(
-        max_length=200
-    )
-
-    date = models.DateField()
-
     time = models.CharField(
-        max_length=50
+        max_length=50,
+        blank=True,
+        default=""
     )
 
-    price = models.IntegerField()
+    venue = models.CharField(
+        max_length=255,
+        blank=True,
+        default=""
+    )
+
+    price = models.IntegerField(
+        default=0
+    )
 
     is_active = models.BooleanField(
         default=True
@@ -207,3 +224,42 @@ class Event(models.Model):
 
     def __str__(self):
         return self.title
+
+class SupportTicket(models.Model):
+    CATEGORY_CHOICES = [
+        ("BOOKING", "Booking Issue"),
+        ("PAYMENT", "Payment Issue"),
+        ("OTHER", "Other Issue"),
+    ]
+
+    STATUS_CHOICES = [
+        ("OPEN", "Open"),
+        ("IN_PROGRESS", "In Progress"),
+        ("RESOLVED", "Resolved"),
+    ]
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="support_tickets",
+    )
+    name = models.CharField(max_length=100)
+    email = models.EmailField()
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    message = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="OPEN")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name} - {self.get_category_display()} - {self.status}"
+    
+
+@admin.register(SupportTicket)
+class SupportTicketAdmin(admin.ModelAdmin):
+    list_display = ("id", "name", "email", "status", "created_at")
+    list_filter = ("category", "status", "created_at")
+    search_fields = ("name", "email", "message")
+    readonly_fields = ("created_at", "updated_at")

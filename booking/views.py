@@ -45,6 +45,7 @@ from .models import (
     Seat,
     Show,
     Wishlist,
+    SupportTicket,
 )
 from openai import OpenAI
 
@@ -1670,7 +1671,304 @@ def remove_from_wishlist(request, movie_id):
     messages.success(request, f"{movie.title} removed from wishlist")
     return redirect(request.META.get("HTTP_REFERER", "/wishlist/"))
 
+def _movie_release_text(movie):
+    release_date = getattr(movie, "release_date", None)
 
+    if not release_date:
+        return "Release: TBA"
+
+    if isinstance(release_date, str):
+        try:
+            release_date = datetime.fromisoformat(release_date).date()
+        except Exception:
+            return f"Release: {release_date}"
+
+    try:
+        return f"Release: {release_date.strftime('%d %b %Y')}"
+    except Exception:
+        return f"Release: {release_date}"
+
+
+def _movie_list_reply(title, movies):
+    if not movies:
+        return f"I could not find any {title.lower()} right now."
+
+    lines = [title]
+    for index, movie in enumerate(movies, start=1):
+        genre = movie.genre or "N/A"
+        rating = movie.rating or 0
+        release_text = _movie_release_text(movie)
+        lines.append(f"{index}. {movie.title} — {genre} — Rating: {rating} — {release_text}")
+
+    return "\n".join(lines)
+
+
+def _get_upcoming_movies(limit=5):
+    today = timezone.localdate()
+    return (
+        Movie.objects.filter(is_active=True, release_date__gte=today)
+        .order_by("release_date")[:limit]
+    )
+
+
+def _get_top_movies(limit=5):
+    return Movie.objects.filter(is_active=True).order_by("-rating", "-vote_count")[:limit]
+
+
+def _get_movies_by_budget(budget, limit=5):
+    qs = Movie.objects.filter(is_active=True)
+
+    if MOVIE_HAS_BUDGET_FIELD:
+        qs = qs.filter(budget_level=budget)
+    else:
+        if budget == "low":
+            qs = qs.filter(rating__lt=6.5)
+        elif budget == "medium":
+            qs = qs.filter(rating__gte=6.5, rating__lt=8)
+        else:
+            qs = qs.filter(rating__gte=8)
+
+    return qs.order_by("-rating", "-vote_count")[:limit]
+
+
+def _get_movies_by_genre(genre_text, limit=5):
+    return (
+        Movie.objects.filter(is_active=True, genre__icontains=genre_text)
+        .order_by("-rating", "-vote_count")[:limit]
+    )
+
+
+def _detect_genre(message_lower):
+    genre_aliases = {
+        "science fiction": "sci-fi",
+        "sci fi": "sci-fi",
+        "sci-fi": "sci-fi",
+        "romantic": "romance",
+        "romance": "romance",
+        "horror": "horror",
+        "thriller": "thriller",
+        "action": "action",
+        "comedy": "comedy",
+        "drama": "drama",
+        "family": "family",
+        "adventure": "adventure",
+        "crime": "crime",
+        "mystery": "mystery",
+        "fantasy": "fantasy",
+        "animation": "animation",
+        "musical": "musical",
+    }
+
+    for key, value in genre_aliases.items():
+        if key in message_lower:
+            return value
+    return None
+
+
+def _send_support_ticket_emails(ticket):
+    admin_email = getattr(settings, "SUPPORT_ADMIN_EMAIL", None) or getattr(
+        settings, "DEFAULT_FROM_EMAIL", settings.EMAIL_HOST_USER
+    )
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", settings.EMAIL_HOST_USER)
+
+    # Email to user
+    send_mail(
+        subject=f"ShowTime Support Received - Ticket #{ticket.id}",
+        message=(
+            f"Hi {ticket.name},\n\n"
+            f"We received your issue:\n\n"
+            f"Category: {ticket.get_category_display()}\n"
+            f"Message: {ticket.message}\n\n"
+            f"Our team will contact you soon.\n\n"
+            f"Thanks,\nShowTime Support"
+        ),
+        from_email=from_email,
+        recipient_list=[ticket.email],
+        fail_silently=False,
+    )
+
+    # Email to admin
+    if admin_email:
+        send_mail(
+            subject=f"New ShowTime Support Ticket #{ticket.id}",
+            message=(
+                f"New support ticket received.\n\n"
+                f"Ticket ID: {ticket.id}\n"
+                f"Name: {ticket.name}\n"
+                f"Email: {ticket.email}\n"
+                f"Category: {ticket.get_category_display()}\n"
+                f"Message: {ticket.message}\n"
+                f"Status: {ticket.get_status_display()}\n"
+                f"Created At: {ticket.created_at}\n"
+            ),
+            from_email=from_email,
+            recipient_list=[admin_email],
+            fail_silently=False,
+        )
+
+# ---------------------------
+# SUPPORT TICKET
+# ---------------------------
+
+def _movie_release_text(movie):
+    release_date = getattr(movie, "release_date", None)
+
+    if not release_date:
+        return "Release: TBA"
+
+    if isinstance(release_date, str):
+        try:
+            release_date = datetime.fromisoformat(release_date).date()
+        except Exception:
+            return f"Release: {release_date}"
+
+    try:
+        return f"Release: {release_date.strftime('%d %b %Y')}"
+    except Exception:
+        return f"Release: {release_date}"
+
+
+def _movie_list_reply(title, movies):
+    if not movies:
+        return f"I could not find any {title.lower()} right now."
+
+    lines = [title]
+    for index, movie in enumerate(movies, start=1):
+        genre = movie.genre or "N/A"
+        rating = movie.rating or 0
+        release_text = _movie_release_text(movie)
+        lines.append(f"{index}. {movie.title} — {genre} — Rating: {rating} — {release_text}")
+
+    return "\n".join(lines)
+
+
+def _get_upcoming_movies(limit=5):
+    today = timezone.localdate()
+    return (
+        Movie.objects.filter(is_active=True, release_date__gte=today)
+        .order_by("release_date")[:limit]
+    )
+
+
+def _get_top_movies(limit=5):
+    return Movie.objects.filter(is_active=True).order_by("-rating", "-vote_count")[:limit]
+
+
+def _get_movies_by_budget(budget, limit=5):
+    qs = Movie.objects.filter(is_active=True)
+
+    if MOVIE_HAS_BUDGET_FIELD:
+        qs = qs.filter(budget_level=budget)
+    else:
+        if budget == "low":
+            qs = qs.filter(rating__lt=6.5)
+        elif budget == "medium":
+            qs = qs.filter(rating__gte=6.5, rating__lt=8)
+        else:
+            qs = qs.filter(rating__gte=8)
+
+    return qs.order_by("-rating", "-vote_count")[:limit]
+
+
+def _get_movies_by_genre(genre_text, limit=5):
+    return (
+        Movie.objects.filter(is_active=True, genre__icontains=genre_text)
+        .order_by("-rating", "-vote_count")[:limit]
+    )
+
+
+def _detect_genre(message_lower):
+    genre_aliases = {
+        "science fiction": "sci-fi",
+        "sci fi": "sci-fi",
+        "sci-fi": "sci-fi",
+        "romantic": "romance",
+        "romance": "romance",
+        "horror": "horror",
+        "thriller": "thriller",
+        "action": "action",
+        "comedy": "comedy",
+        "drama": "drama",
+        "family": "family",
+        "adventure": "adventure",
+        "crime": "crime",
+        "mystery": "mystery",
+        "fantasy": "fantasy",
+        "animation": "animation",
+        "musical": "musical",
+    }
+
+    for key, value in genre_aliases.items():
+        if key in message_lower:
+            return value
+    return None
+
+
+def _send_support_ticket_emails(ticket):
+    admin_email = getattr(settings, "SUPPORT_ADMIN_EMAIL", None) or getattr(
+        settings, "DEFAULT_FROM_EMAIL", settings.EMAIL_HOST_USER
+    )
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", settings.EMAIL_HOST_USER)
+
+    # Email to user
+    send_mail(
+        subject=f"ShowTime Support Received - Ticket #{ticket.id}",
+        message=(
+            f"Hi {ticket.name},\n\n"
+            f"We received your issue:\n\n"
+            f"Category: {ticket.get_category_display()}\n"
+            f"Message: {ticket.message}\n\n"
+            f"Our team will contact you soon.\n\n"
+            f"Thanks,\nShowTime Support"
+        ),
+        from_email=from_email,
+        recipient_list=[ticket.email],
+        fail_silently=False,
+    )
+
+    # Email to admin
+    if admin_email:
+        send_mail(
+            subject=f"New ShowTime Support Ticket #{ticket.id}",
+            message=(
+                f"New support ticket received.\n\n"
+                f"Ticket ID: {ticket.id}\n"
+                f"Name: {ticket.name}\n"
+                f"Email: {ticket.email}\n"
+                f"Category: {ticket.get_category_display()}\n"
+                f"Message: {ticket.message}\n"
+                f"Status: {ticket.get_status_display()}\n"
+                f"Created At: {ticket.created_at}\n"
+            ),
+            from_email=from_email,
+            recipient_list=[admin_email],
+            fail_silently=False,
+        )
+
+
+def _create_support_ticket(request, category, message, email=None, name=None):
+    if request.user.is_authenticated:
+        ticket_name = name or request.user.get_full_name() or request.user.username
+        ticket_email = email or request.user.email
+        ticket_user = request.user
+    else:
+        ticket_name = name or "Guest"
+        ticket_email = email
+        ticket_user = None
+
+    if not ticket_email:
+        raise ValueError("Email is required for support tickets.")
+
+    ticket = SupportTicket.objects.create(
+        user=ticket_user,
+        name=ticket_name,
+        email=ticket_email,
+        category=category,
+        message=message,
+    )
+
+    _send_support_ticket_emails(ticket)
+    return ticket
 # ---------------------------
 # CHATBOT
 # ---------------------------
@@ -1679,98 +1977,273 @@ def remove_from_wishlist(request, movie_id):
 
 @require_POST
 def chatbot_reply(request):
+    """
+    Two-mode chatbot:
+    1) Support mode -> creates a support ticket and emails user/admin
+    2) Movie suggestion mode -> suggests movies from database
+    """
     try:
         data = json.loads(request.body or "{}")
         message = (data.get("message") or "").strip()
+        message_lower = message.lower()
 
         if not message:
-            return JsonResponse({"reply": "Please enter a message."}, status=400)
+            return JsonResponse({
+                "reply": "Please type something first.",
+                "options": ["Support issue", "Movie suggestion"],
+            })
 
-        if not getattr(settings, "OPENAI_API_KEY", None):
-            return JsonResponse(
-                {"reply": "OpenAI API key is missing."},
-                status=500,
-            )
+        def clear_flow():
+            for key in [
+                "chatbot_mode",
+                "chatbot_step",
+                "support_category",
+                "support_message",
+                "movie_category",
+            ]:
+                request.session.pop(key, None)
 
-        today = timezone.localdate()
+        def main_menu():
+            clear_flow()
+            request.session["chatbot_step"] = "main_menu"
+            return JsonResponse({
+                "reply": "How can I help you today?",
+                "options": ["Support issue", "Movie suggestion"],
+            })
 
-        upcoming_movies = Movie.objects.filter(
-            is_active=True,
-            release_date__gte=today,
-        ).order_by("release_date")[:8]
+        # Reset / back
+        if message_lower in {"reset", "restart", "start over", "menu", "back"}:
+            return main_menu()
 
-        top_movies = Movie.objects.filter(
-            is_active=True
-        ).order_by("-rating", "-vote_count")[:8]
+        mode = request.session.get("chatbot_mode")
+        step = request.session.get("chatbot_step")
 
-        upcoming_context = "\n".join(
-            [
-                f"- {m.title} | Release: {m.release_date} | Genre: {m.genre or 'N/A'} | Budget: {getattr(m, 'budget_level', 'N/A')}"
-                for m in upcoming_movies
-            ]
-        ) or "No upcoming movies found."
+        # ---------------------------
+        # FIRST MESSAGE / AUTO ROUTING
+        # ---------------------------
+        if not mode and not step:
+            if any(word in message_lower for word in ["support", "issue", "problem", "help", "booking", "payment"]):
+                request.session["chatbot_mode"] = "support"
+                request.session["chatbot_step"] = "support_menu"
+                return JsonResponse({
+                    "reply": "Please choose the issue type:",
+                    "options": ["Booking issue", "Payment issue", "Other issue"],
+                })
 
-        top_context = "\n".join(
-            [
-                f"- {m.title} | Genre: {m.genre or 'N/A'} | Rating: {m.rating or 0} | Budget: {getattr(m, 'budget_level', 'N/A')}"
-                for m in top_movies
-            ]
-        ) or "No movies found."
+            if any(word in message_lower for word in ["movie", "suggest", "recommend", "upcoming", "watch"]):
+                request.session["chatbot_mode"] = "movie"
+                request.session["chatbot_step"] = "movie_menu"
+                return JsonResponse({
+                    "reply": "What kind of movie suggestion do you want?",
+                    "options": ["Upcoming movies", "By genre", "By budget", "Top rated"],
+                })
 
-        history = request.session.get("chatbot_history", [])[-6:]
+            return JsonResponse({
+                "reply": "How can I help you today?",
+                "options": ["Support issue", "Movie suggestion"],
+            })
 
-        system_prompt = f"""
-You are ShowTime AI, a helpful movie and event assistant.
+        # ---------------------------
+        # SUPPORT MODE
+        # ---------------------------
+        if mode == "support":
+            if step == "support_menu":
+                if "booking" in message_lower:
+                    request.session["support_category"] = "BOOKING"
+                    request.session["chatbot_step"] = "support_booking_check"
+                    return JsonResponse({
+                        "reply": "Is your booking issue about ticket not generated or seat not booked?",
+                        "options": ["Yes", "No", "Other issue"],
+                    })
 
-Use the following live ShowTime data when answering:
+                if "payment" in message_lower:
+                    request.session["support_category"] = "PAYMENT"
+                    request.session["chatbot_step"] = "support_payment_check"
+                    return JsonResponse({
+                        "reply": "Is your payment issue about money deducted or payment failed?",
+                        "options": ["Yes", "No", "Other issue"],
+                    })
 
-UPCOMING MOVIES:
-{upcoming_context}
+                if "other" in message_lower:
+                    request.session["support_category"] = "OTHER"
+                    request.session["chatbot_step"] = "support_collect_message"
+                    return JsonResponse({
+                        "reply": "Please type your issue in detail.",
+                        "options": [],
+                    })
 
-TOP MOVIES:
-{top_context}
+                return JsonResponse({
+                    "reply": "Please choose one of the issue types below.",
+                    "options": ["Booking issue", "Payment issue", "Other issue"],
+                })
 
-Rules:
-- If the user asks about upcoming movies, mention only from the UPCOMING MOVIES list.
-- If the user asks for release date, use the release date from the data above.
-- If the user asks for budget/genre suggestions, recommend from the TOP MOVIES list if needed.
-- Keep replies short, friendly, and useful.
-- If the data is not enough, say so honestly.
-- Do not invent movie names or release dates.
-"""
+            if step in {"support_booking_check", "support_payment_check"}:
+                request.session["chatbot_step"] = "support_collect_message"
+                return JsonResponse({
+                    "reply": "Please type your issue in detail.",
+                    "options": [],
+                })
 
-        prompt_parts = [system_prompt]
-        for item in history:
-            role = item.get("role", "user")
-            content = item.get("content", "")
-            prompt_parts.append(f"{role.upper()}: {content}")
+            if step == "support_collect_message":
+                if not message:
+                    return JsonResponse({
+                        "reply": "Please type your issue details first.",
+                        "options": [],
+                    })
 
-        prompt_parts.append(f"USER: {message}")
-        prompt_parts.append("ASSISTANT:")
-        prompt = "\n\n".join(prompt_parts)
+                request.session["support_message"] = message
 
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+                if request.user.is_authenticated and request.user.email:
+                    ticket = _create_support_ticket(
+                        request=request,
+                        category=request.session.get("support_category", "OTHER"),
+                        message=message,
+                    )
+                    clear_flow()
+                    return JsonResponse({
+                        "reply": (
+                            f"Thanks {ticket.name}. Your issue has been received. "
+                            f"We emailed you a confirmation and our team will contact you soon."
+                        ),
+                        "options": ["Support issue", "Movie suggestion"],
+                    })
 
-        response = client.responses.create(
-            model="gpt-4.1-mini",
-            input=prompt,
-        )
+                request.session["chatbot_step"] = "support_collect_email"
+                return JsonResponse({
+                    "reply": "Please enter your email address so we can send a confirmation.",
+                    "options": [],
+                })
 
-        reply = (response.output_text or "").strip()
-        if not reply:
-            reply = "I could not generate a reply right now."
+            if step == "support_collect_email":
+                if not message:
+                    return JsonResponse({
+                        "reply": "Please enter your email address.",
+                        "options": [],
+                    })
 
-        history.append({"role": "user", "content": message})
-        history.append({"role": "assistant", "content": reply})
-        request.session["chatbot_history"] = history[-10:]
-        request.session.modified = True
+                if "@" not in message or "." not in message:
+                    return JsonResponse({
+                        "reply": "That email does not look valid. Please enter a correct email.",
+                        "options": [],
+                    })
 
-        return JsonResponse({"reply": reply})
+                ticket = _create_support_ticket(
+                    request=request,
+                    category=request.session.get("support_category", "OTHER"),
+                    message=request.session.get("support_message", ""),
+                    email=message,
+                    name=request.user.username if request.user.is_authenticated else "Guest",
+                )
+                clear_flow()
+                return JsonResponse({
+                    "reply": (
+                        f"Thanks {ticket.name}. Your issue has been received. "
+                        f"We emailed you a confirmation and our team will contact you soon."
+                    ),
+                    "options": ["Support issue", "Movie suggestion"],
+                })
+
+        # ---------------------------
+        # MOVIE MODE
+        # ---------------------------
+        if mode == "movie":
+            if step == "movie_menu":
+                # Upcoming movies
+                if any(word in message_lower for word in ["upcoming", "release", "coming soon"]):
+                    movies = _get_upcoming_movies()
+                    clear_flow()
+                    return JsonResponse({
+                        "reply": _movie_list_reply("Upcoming Movies", movies),
+                        "options": ["Movie suggestion", "Support issue"],
+                    })
+
+                # Top rated
+                if any(word in message_lower for word in ["top", "best", "popular", "rating"]):
+                    movies = _get_top_movies()
+                    clear_flow()
+                    return JsonResponse({
+                        "reply": _movie_list_reply("Top Rated Movies", movies),
+                        "options": ["Movie suggestion", "Support issue"],
+                    })
+
+                # By budget
+                if "budget" in message_lower:
+                    request.session["chatbot_step"] = "movie_budget"
+                    return JsonResponse({
+                        "reply": "Choose a budget:",
+                        "options": ["low", "medium", "high", "Back"],
+                    })
+
+                # By genre directly if user already typed a genre
+                detected_genre = _detect_genre(message_lower)
+                if detected_genre:
+                    movies = _get_movies_by_genre(detected_genre)
+                    clear_flow()
+                    return JsonResponse({
+                        "reply": _movie_list_reply(f"{detected_genre.title()} Movies", movies),
+                        "options": ["Movie suggestion", "Support issue"],
+                    })
+
+                # Ask for genre
+                if "genre" in message_lower:
+                    request.session["chatbot_step"] = "movie_genre"
+                    return JsonResponse({
+                        "reply": "Which genre do you want?",
+                        "options": ["Action", "Comedy", "Horror", "Romance", "Thriller", "Drama", "Sci-Fi", "Back"],
+                    })
+
+                return JsonResponse({
+                    "reply": "Choose how you want movie suggestions:",
+                    "options": ["Upcoming movies", "By genre", "By budget", "Top rated"],
+                })
+
+            if step == "movie_genre":
+                if message_lower in {"back", "menu"}:
+                    return main_menu()
+
+                genre_text = message.strip()
+                movies = _get_movies_by_genre(genre_text)
+
+                # fallback if direct genre search fails
+                if not movies:
+                    detected_genre = _detect_genre(message_lower)
+                    if detected_genre:
+                        movies = _get_movies_by_genre(detected_genre)
+                        genre_text = detected_genre
+
+                clear_flow()
+                return JsonResponse({
+                    "reply": _movie_list_reply(f"{genre_text.title()} Movies", movies),
+                    "options": ["Movie suggestion", "Support issue"],
+                })
+
+            if step == "movie_budget":
+                if message_lower in {"back", "menu"}:
+                    return main_menu()
+
+                budget = message_lower
+                if budget not in {"low", "medium", "high"}:
+                    return JsonResponse({
+                        "reply": "Please choose a valid budget: low, medium, or high.",
+                        "options": ["low", "medium", "high", "Back"],
+                    })
+
+                movies = _get_movies_by_budget(budget)
+                clear_flow()
+                return JsonResponse({
+                    "reply": _movie_list_reply(f"{budget.title()} Budget Movies", movies),
+                    "options": ["Movie suggestion", "Support issue"],
+                })
+
+        # ---------------------------
+        # FALLBACK
+        # ---------------------------
+        return main_menu()
 
     except Exception as e:
         print("CHATBOT ERROR:", repr(e))
         return JsonResponse(
-            {"reply": "Sorry, the chatbot is unavailable right now."},
+            {"reply": "Sorry, something went wrong while handling your request."},
             status=500,
         )
 # ---------------------------
@@ -2365,3 +2838,81 @@ def explore(request):
 
     ]
     return render(request, "booking/explore.html", {"sections": sections})
+
+
+def _send_support_ticket_emails(ticket):
+    """
+    Send confirmation email to user and notification email to admin.
+    """
+    admin_email = getattr(settings, "SUPPORT_ADMIN_EMAIL", None) or getattr(
+        settings, "DEFAULT_FROM_EMAIL", None
+    )
+
+    # Mail to user
+    user_subject = f"ShowTime Support Received: {ticket.get_category_display()}"
+    user_message = (
+        f"Hi {ticket.name},\n\n"
+        f"We received your issue:\n\n"
+        f"Category: {ticket.get_category_display()}\n"
+        f"Message: {ticket.message}\n\n"
+        f"Our team will contact you soon.\n\n"
+        f"Thanks,\nShowTime Support"
+    )
+
+    send_mail(
+        subject=user_subject,
+        message=user_message,
+        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", settings.EMAIL_HOST_USER),
+        recipient_list=[ticket.email],
+        fail_silently=False,
+    )
+
+    # Mail to admin
+    if admin_email:
+        admin_subject = f"New ShowTime Support Ticket #{ticket.id}"
+        admin_message = (
+            f"New support ticket received.\n\n"
+            f"Ticket ID: {ticket.id}\n"
+            f"Name: {ticket.name}\n"
+            f"Email: {ticket.email}\n"
+            f"Category: {ticket.get_category_display()}\n"
+            f"Message: {ticket.message}\n"
+            f"Status: {ticket.get_status_display()}\n"
+            f"Created At: {ticket.created_at}\n"
+        )
+
+        send_mail(
+            subject=admin_subject,
+            message=admin_message,
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", settings.EMAIL_HOST_USER),
+            recipient_list=[admin_email],
+            fail_silently=False,
+        )
+
+
+def _create_support_ticket(request, category, message, email=None, name=None):
+    """
+    Create a support ticket and send emails.
+    """
+    if request.user.is_authenticated:
+        ticket_name = request.user.username
+        ticket_email = request.user.email or email
+        ticket_user = request.user
+    else:
+        ticket_name = name or "Guest"
+        ticket_email = email
+        ticket_user = None
+
+    if not ticket_email:
+        raise ValueError("Email is required for support tickets.")
+
+    ticket = SupportTicket.objects.create(
+        user=ticket_user,
+        name=ticket_name,
+        email=ticket_email,
+        category=category,
+        message=message,
+    )
+
+    _send_support_ticket_emails(ticket)
+    return ticket

@@ -50,14 +50,14 @@
         .nav-links{
             display:flex;
             align-items:center;
-            gap:22px;
+            gap:14px;
             flex-wrap:wrap;
         }
 
         .nav-links a{
             text-decoration:none;
             color:#f2f2f2;
-            font-size:15px;
+            font-size:14px;
             font-weight:600;
             opacity:.92;
         }
@@ -69,12 +69,13 @@
         .nav-right{
             display:flex;
             align-items:center;
-            gap:12px;
+            gap:8px;
+            flex-wrap:wrap;
         }
 
         .search-box{
-            width:200px;
-            max-width:28vw;
+            width:170px;
+            max-width:55vw;
             padding:10px 14px;
             border:none;
             outline:none;
@@ -196,6 +197,7 @@
             font-size:14px;
             line-height:1.5;
             word-wrap:break-word;
+            white-space:pre-line;
         }
 
         .chat-bot{
@@ -208,6 +210,29 @@
             align-self:flex-end;
             background:#ff4d4d;
             color:#fff;
+        }
+
+        .chat-options{
+            display:flex;
+            flex-wrap:wrap;
+            gap:8px;
+            padding:0 12px 12px;
+            background:#121212;
+        }
+
+        .chat-option-btn{
+            border:none;
+            border-radius:999px;
+            padding:8px 12px;
+            background:#2a2a2a;
+            color:white;
+            cursor:pointer;
+            font-size:13px;
+            font-weight:700;
+        }
+
+        .chat-option-btn:hover{
+            background:#3a3a3a;
         }
 
         .chat-input-row{
@@ -245,7 +270,7 @@
             }
 
             .nav-links{
-                gap:14px;
+                gap:12px;
             }
 
             .search-box{
@@ -287,20 +312,16 @@
         </nav>
 
         <div class="nav-right">
-    <input class="search-box" type="text" placeholder="Search movies...">
+            <input class="search-box" type="text" placeholder="Search movies...">
 
-    <button id="chat-toggle" class="icon-btn" type="button" aria-label="Open chatbot">
-        🤖
-    </button>
-
-    {% if user.is_authenticated %}
-        <span class="username-pill">👋 {{ user.username }}</span>
-        <a href="{% url 'logout' %}" class="auth-btn">Logout</a>
-    {% else %}
-        <a href="{% url 'signup' %}" class="auth-btn">Signup</a>
-        <a href="{% url 'login' %}" class="auth-btn">Login</a>
-    {% endif %}
-</div>
+            {% if user.is_authenticated %}
+                <span class="username-pill">👋 {{ user.username }}</span>
+                <a href="{% url 'logout' %}" class="auth-btn">Logout</a>
+            {% else %}
+                <a href="{% url 'signup' %}" class="auth-btn">Signup</a>
+                <a href="{% url 'login' %}" class="auth-btn">Login</a>
+            {% endif %}
+        </div>
     </header>
 
     <main class="main-content">
@@ -309,44 +330,46 @@
 
     <!-- CHATBOT -->
     <button id="chat-toggle-fab" class="chat-fab" type="button" aria-label="Toggle chatbot">
-        🤖
+        💬
     </button>
 
     <div id="chat-box" class="chat-box">
         <div class="chat-header">
-            <span>ShowTime AI</span>
+            <span>ShowTime Support</span>
             <button id="chat-close" class="chat-close" type="button" aria-label="Close chatbot">×</button>
         </div>
 
         <div id="chat-messages" class="chat-messages">
-            <div class="chat-bot">👋 Hi! Ask me movie recommendations.</div>
+            <div class="chat-bot">
+                👋 Hi! I can help with booking, payment, or movie suggestion.
+            </div>
         </div>
+
+        <div id="chat-options" class="chat-options"></div>
 
         <div class="chat-input-row">
             <input
                 id="chat-input"
                 class="chat-input"
                 type="text"
-                placeholder="Type horror, comedy, action..."
+                placeholder="Type here..."
                 autocomplete="off"
             >
-            <button id="chat-mic" class="chat-send" type="button" title="Voice input" aria-label="Voice input">🎤</button>
             <button id="chat-send" class="chat-send" type="button" title="Send" aria-label="Send message">➤</button>
         </div>
     </div>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const chatToggle = document.getElementById("chat-toggle");
             const chatToggleFab = document.getElementById("chat-toggle-fab");
             const chatBox = document.getElementById("chat-box");
             const chatClose = document.getElementById("chat-close");
             const chatMessages = document.getElementById("chat-messages");
             const chatInput = document.getElementById("chat-input");
-            const chatMic = document.getElementById("chat-mic");
             const chatSend = document.getElementById("chat-send");
+            const chatOptions = document.getElementById("chat-options");
 
-            if (!chatToggle || !chatToggleFab || !chatBox || !chatClose || !chatMessages || !chatInput || !chatMic || !chatSend) {
+            if (!chatToggleFab || !chatBox || !chatClose || !chatMessages || !chatInput || !chatSend || !chatOptions) {
                 return;
             }
 
@@ -365,12 +388,33 @@
                 chatMessages.scrollTop = chatMessages.scrollHeight;
             }
 
+            function renderOptions(options) {
+                chatOptions.innerHTML = "";
+
+                if (!options || !options.length) return;
+
+                options.forEach(option => {
+                    const btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.className = "chat-option-btn";
+                    btn.textContent = option;
+
+                    btn.addEventListener("click", function () {
+                        chatInput.value = option;
+                        sendMessage();
+                    });
+
+                    chatOptions.appendChild(btn);
+                });
+            }
+
             async function sendMessage() {
                 const message = chatInput.value.trim();
                 if (!message) return;
 
                 addMessage(message, "user");
                 chatInput.value = "";
+                chatOptions.innerHTML = "";
 
                 try {
                     const response = await fetch("/chatbot-reply/", {
@@ -387,25 +431,30 @@
                     if (data.reply) {
                         addMessage(data.reply, "bot");
                     } else {
-                        addMessage("Sorry, I could not understand that.", "bot");
+                        addMessage("Something went wrong. Please try again.", "bot");
+                    }
+
+                    if (data.options && Array.isArray(data.options)) {
+                        renderOptions(data.options);
                     }
                 } catch (error) {
-                    console.error("Chatbot error:", error);
+                    console.error("Support chatbot error:", error);
                     addMessage("Something went wrong. Please try again.", "bot");
                 }
             }
 
-            function openChat() {
+            chatToggleFab.addEventListener("click", function () {
                 chatBox.style.display = "block";
-            }
 
-            function closeChat() {
+                if (chatMessages.children.length === 1) {
+                    chatInput.value = "start";
+                    sendMessage();
+                }
+            });
+
+            chatClose.addEventListener("click", function () {
                 chatBox.style.display = "none";
-            }
-
-            chatToggle.addEventListener("click", openChat);
-            chatToggleFab.addEventListener("click", openChat);
-            chatClose.addEventListener("click", closeChat);
+            });
 
             chatSend.addEventListener("click", sendMessage);
 
@@ -415,36 +464,6 @@
                     sendMessage();
                 }
             });
-
-            // Voice input
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-            if (!SpeechRecognition) {
-                chatMic.style.display = "none";
-            } else {
-                const recognition = new SpeechRecognition();
-                recognition.lang = "en-US";
-                recognition.interimResults = false;
-                recognition.maxAlternatives = 1;
-
-                chatMic.addEventListener("click", function () {
-                    try {
-                        recognition.start();
-                    } catch (e) {
-                        console.error("Speech recognition start error:", e);
-                    }
-                });
-
-                recognition.onresult = function (event) {
-                    const transcript = event.results[0][0].transcript;
-                    chatInput.value = transcript;
-                    chatInput.focus();
-                };
-
-                recognition.onerror = function (event) {
-                    console.error("Speech Recognition Error:", event.error);
-                };
-            }
         });
     </script>
 
