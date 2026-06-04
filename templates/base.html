@@ -445,11 +445,6 @@
 
             chatToggleFab.addEventListener("click", function () {
                 chatBox.style.display = "block";
-
-                if (chatMessages.children.length === 1) {
-                    chatInput.value = "start";
-                    sendMessage();
-                }
             });
 
             chatClose.addEventListener("click", function () {

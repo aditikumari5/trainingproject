@@ -292,6 +292,11 @@ class Command(BaseCommand):
                     "genre":
                         genre_names,
 
+                    "language":
+                        details.get("original_language")
+                        or item.get("original_language")
+                        or "",
+
                     "is_active":
                         True,
 

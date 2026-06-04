@@ -32,6 +32,7 @@ class Movie(models.Model):
     tmdb_id = models.IntegerField(null=True, blank=True, unique=True)
     budget_level = models.CharField(max_length=20, default="medium")
     is_active = models.BooleanField(default=True)
+    language = models.CharField(max_length=50,blank=True,default="")
 
     def __str__(self):
         return self.title

@@ -48,6 +48,8 @@ from .models import (
     SupportTicket,
 )
 from openai import OpenAI
+import calendar
+import traceback
 
 
 
@@ -1969,6 +1971,8 @@ def _create_support_ticket(request, category, message, email=None, name=None):
 
     _send_support_ticket_emails(ticket)
     return ticket
+
+
 # ---------------------------
 # CHATBOT
 # ---------------------------
@@ -1977,15 +1981,68 @@ def _create_support_ticket(request, category, message, email=None, name=None):
 
 @require_POST
 def chatbot_reply(request):
-    """
-    Two-mode chatbot:
-    1) Support mode -> creates a support ticket and emails user/admin
-    2) Movie suggestion mode -> suggests movies from database
-    """
     try:
         data = json.loads(request.body or "{}")
         message = (data.get("message") or "").strip()
         message_lower = message.lower()
+
+        def clear_flow():
+            for key in [
+                "chatbot_mode",
+                "chatbot_step",
+                "support_category",
+                "support_message",
+                "movie_category",
+            ]:
+                request.session.pop(key, None)
+
+        def main_menu():
+            clear_flow()
+            return JsonResponse({
+                "reply": "How can I help you today?",
+                "options": ["Support issue", "Movie suggestion"],
+            })
+
+        mode = request.session.get("chatbot_mode")
+        step = request.session.get("chatbot_step")
+
+        if "movie suggestion" in message_lower:
+            clear_flow()
+
+            request.session["chatbot_mode"] = "movie"
+            request.session["chatbot_step"] = "movie_menu"
+
+            return JsonResponse({
+                "reply": "What kind of movie suggestion do you want?",
+                "options": [
+                    "Upcoming movies",
+                    "By genre",
+                    "By budget",
+                    "Top rated",
+                    "By language",
+                ],
+            })
+
+        if "support issue" in message_lower:
+            clear_flow()
+
+            request.session["chatbot_mode"] = "support"
+            request.session["chatbot_step"] = "support_menu"
+
+            return JsonResponse({
+                "reply": "Please choose the issue type:",
+                "options": [
+                    "Booking issue",
+                    "Payment issue",
+                    "Other issue",
+                ],
+            })
+                
+        if message_lower == "start":
+            return JsonResponse({
+                "reply": "How can I help you today?",
+                "options": ["Support issue", "Movie suggestion"],
+            })
 
         if not message:
             return JsonResponse({
@@ -2004,48 +2061,141 @@ def chatbot_reply(request):
                 request.session.pop(key, None)
 
         def main_menu():
-            clear_flow()
-            request.session["chatbot_step"] = "main_menu"
+            request.session.flush()
+
             return JsonResponse({
                 "reply": "How can I help you today?",
                 "options": ["Support issue", "Movie suggestion"],
             })
 
         # Reset / back
-        if message_lower in {"reset", "restart", "start over", "menu", "back"}:
+        if message_lower in {"back", "⬅ back"}:
+            request.session["chatbot_mode"] = "movie"
+            request.session["chatbot_step"] = "movie_menu"
+
+            return JsonResponse({
+                "reply": "What kind of movie suggestion do you want?",
+                "options": [
+                    "Upcoming movies",
+                    "By genre",
+                    "By budget",
+                    "Top rated"
+                ],
+            })
+
+        if message_lower in {"reset", "restart", "start over", "menu", "🏠 main menu"}:
             return main_menu()
 
         mode = request.session.get("chatbot_mode")
         step = request.session.get("chatbot_step")
+        print("MESSAGE =", message_lower)
+        print("MODE =", mode)
+        print("STEP =", step)
+        print("===================================")
+        print("MESSAGE =", message_lower)
+        print("MODE =", mode)
+        print("STEP =", step)
+        print("===================================")
+
+        # ---------------------------
+        # DIRECT UPCOMING MOVIES QUERY
+        # ---------------------------
+        if (
+            "upcoming movie" in message_lower
+            or "upcoming movies" in message_lower
+            or "tell me upcoming movies" in message_lower
+            or "movies releasing" in message_lower
+        ):
+            today = timezone.localdate()
+
+            movies = (
+                Movie.objects
+                .filter(release_date__gte=today)
+                .order_by("release_date")[:10]
+            )
+
+            if not movies:
+                return JsonResponse({
+                    "reply": "No upcoming movies found."
+                })
+
+            lines = ["🎬 Upcoming Movies\n"]
+
+            for movie in movies:
+                lines.append(
+                    f"• {movie.title} ({movie.release_date.strftime('%d %b %Y')})"
+                )
+
+            return JsonResponse({
+                "reply": "\n".join(lines),
+                "options": ["Movie suggestion", "Support issue"]
+            })
+
 
         # ---------------------------
         # FIRST MESSAGE / AUTO ROUTING
         # ---------------------------
         if not mode and not step:
-            if any(word in message_lower for word in ["support", "issue", "problem", "help", "booking", "payment"]):
+
+            # Direct booking request
+            if "booking" in message_lower:
+                request.session["chatbot_mode"] = "support"
+                request.session["support_category"] = "BOOKING"
+                request.session["chatbot_step"] = "support_booking_check"
+
+                return JsonResponse({
+                    "reply": "Is your booking issue about ticket not generated or seat not booked?",
+                    "options": ["Yes", "No", "Other issue"],
+                })
+
+            # Direct payment request
+            if "payment" in message_lower:
+                request.session["chatbot_mode"] = "support"
+                request.session["support_category"] = "PAYMENT"
+                request.session["chatbot_step"] = "support_payment_check"
+
+                return JsonResponse({
+                    "reply": "Is your payment issue about money deducted or payment failed?",
+                    "options": ["Yes", "No", "Other issue"],
+                })
+
+            # Generic support
+            if any(word in message_lower for word in ["support", "issue", "problem", "help"]):
                 request.session["chatbot_mode"] = "support"
                 request.session["chatbot_step"] = "support_menu"
+
                 return JsonResponse({
                     "reply": "Please choose the issue type:",
                     "options": ["Booking issue", "Payment issue", "Other issue"],
                 })
-
-            if any(word in message_lower for word in ["movie", "suggest", "recommend", "upcoming", "watch"]):
-                request.session["chatbot_mode"] = "movie"
-                request.session["chatbot_step"] = "movie_menu"
-                return JsonResponse({
-                    "reply": "What kind of movie suggestion do you want?",
-                    "options": ["Upcoming movies", "By genre", "By budget", "Top rated"],
-                })
-
-            return JsonResponse({
-                "reply": "How can I help you today?",
-                "options": ["Support issue", "Movie suggestion"],
-            })
-
         # ---------------------------
         # SUPPORT MODE
         # ---------------------------
+        # User typed booking anytime
+        if "booking" in message_lower:
+            clear_flow()
+
+            request.session["chatbot_mode"] = "support"
+            request.session["support_category"] = "BOOKING"
+            request.session["chatbot_step"] = "support_booking_check"
+
+            return JsonResponse({
+                "reply": "Is your booking issue about ticket not generated or seat not booked?",
+                "options": ["Yes", "No", "Other issue"],
+            })
+
+        # User typed payment anytime
+        if "payment" in message_lower:
+            clear_flow()
+
+            request.session["chatbot_mode"] = "support"
+            request.session["support_category"] = "PAYMENT"
+            request.session["chatbot_step"] = "support_payment_check"
+
+            return JsonResponse({
+                "reply": "Is your payment issue about money deducted or payment failed?",
+                "options": ["Yes", "No", "Other issue"],
+            })
         if mode == "support":
             if step == "support_menu":
                 if "booking" in message_lower:
@@ -2057,8 +2207,12 @@ def chatbot_reply(request):
                     })
 
                 if "payment" in message_lower:
+                    clear_flow()
+
+                    request.session["chatbot_mode"] = "support"
                     request.session["support_category"] = "PAYMENT"
                     request.session["chatbot_step"] = "support_payment_check"
+
                     return JsonResponse({
                         "reply": "Is your payment issue about money deducted or payment failed?",
                         "options": ["Yes", "No", "Other issue"],
@@ -2077,11 +2231,35 @@ def chatbot_reply(request):
                     "options": ["Booking issue", "Payment issue", "Other issue"],
                 })
 
-            if step in {"support_booking_check", "support_payment_check"}:
-                request.session["chatbot_step"] = "support_collect_message"
+            if step == "support_booking_check":
+
+                if message_lower in {"yes", "no", "other issue"}:
+                    request.session["chatbot_step"] = "support_collect_message"
+
+                    return JsonResponse({
+                        "reply": "Please describe your booking issue in detail.",
+                        "options": [],
+                    })
+
                 return JsonResponse({
-                    "reply": "Please type your issue in detail.",
-                    "options": [],
+                    "reply": "Please choose Yes, No or Other issue.",
+                    "options": ["Yes", "No", "Other issue"],
+                })
+
+
+            if step == "support_payment_check":
+
+                if message_lower in {"yes", "no", "other issue"}:
+                    request.session["chatbot_step"] = "support_collect_message"
+
+                    return JsonResponse({
+                        "reply": "Please describe your payment issue in detail.",
+                        "options": [],
+                    })
+
+                return JsonResponse({
+                    "reply": "Please choose Yes, No or Other issue.",
+                    "options": ["Yes", "No", "Other issue"],
                 })
 
             if step == "support_collect_message":
@@ -2100,6 +2278,7 @@ def chatbot_reply(request):
                         message=message,
                     )
                     clear_flow()
+                    request.session.modified = True
                     return JsonResponse({
                         "reply": (
                             f"Thanks {ticket.name}. Your issue has been received. "
@@ -2135,6 +2314,7 @@ def chatbot_reply(request):
                     name=request.user.username if request.user.is_authenticated else "Guest",
                 )
                 clear_flow()
+                request.session.modified = True
                 return JsonResponse({
                     "reply": (
                         f"Thanks {ticket.name}. Your issue has been received. "
@@ -2148,58 +2328,145 @@ def chatbot_reply(request):
         # ---------------------------
         if mode == "movie":
             if step == "movie_menu":
-                # Upcoming movies
-                if any(word in message_lower for word in ["upcoming", "release", "coming soon"]):
-                    movies = _get_upcoming_movies()
+
+                # Switch to support flow if user types booking
+                if "booking" in message_lower:
                     clear_flow()
+
+                    request.session["chatbot_mode"] = "support"
+                    request.session["support_category"] = "BOOKING"
+                    request.session["chatbot_step"] = "support_booking_check"
+
                     return JsonResponse({
-                        "reply": _movie_list_reply("Upcoming Movies", movies),
-                        "options": ["Movie suggestion", "Support issue"],
+                        "reply": "Is your booking issue about ticket not generated or seat not booked?",
+                        "options": ["Yes", "No", "Other issue"],
+                    })
+
+                # Switch to support flow if user types payment
+                if "payment" in message_lower:
+                    request.session["support_category"] = "PAYMENT"
+                    request.session["chatbot_step"] = "support_payment_check"
+
+                # Upcoming movies
+                if "upcoming" in message_lower:
+                    today = timezone.localdate()
+
+                    movies = (
+                        Movie.objects
+                        .filter(release_date__gte=today)
+                        .order_by("release_date")[:10]
+                    )
+
+                    lines = ["🎬 Upcoming Movies\n"]
+
+                    for movie in movies:
+                        lines.append(
+                            f"• {movie.title} ({movie.release_date.strftime('%d %b %Y')})"
+                        )
+
+                    clear_flow()
+
+                    return JsonResponse({
+                        "reply": "\n".join(lines),
+                        "options": ["⬅ Back", "🏠 Main Menu"]
                     })
 
                 # Top rated
                 if any(word in message_lower for word in ["top", "best", "popular", "rating"]):
                     movies = _get_top_movies()
                     clear_flow()
+
                     return JsonResponse({
                         "reply": _movie_list_reply("Top Rated Movies", movies),
-                        "options": ["Movie suggestion", "Support issue"],
+                        "options": ["⬅ Back", "🏠 Main Menu"],
+                    })
+
+                # By language
+                if "language" in message_lower:
+                    request.session["chatbot_step"] = "movie_language"
+
+                    return JsonResponse({
+                        "reply": "Which language movies do you want?",
+                        "options": [
+                            "Hindi",
+                            "English",
+                            "Tamil",
+                            "Telugu",
+                            "Malayalam",
+                            "Kannada",
+                            "Punjabi",
+                            "⬅ Back"
+                        ]
                     })
 
                 # By budget
                 if "budget" in message_lower:
                     request.session["chatbot_step"] = "movie_budget"
+
                     return JsonResponse({
                         "reply": "Choose a budget:",
-                        "options": ["low", "medium", "high", "Back"],
+                        "options": ["low", "medium", "high", "⬅ Back"]
                     })
 
-                # By genre directly if user already typed a genre
+                # By genre directly
                 detected_genre = _detect_genre(message_lower)
+
                 if detected_genre:
                     movies = _get_movies_by_genre(detected_genre)
                     clear_flow()
+
                     return JsonResponse({
-                        "reply": _movie_list_reply(f"{detected_genre.title()} Movies", movies),
-                        "options": ["Movie suggestion", "Support issue"],
+                        "reply": _movie_list_reply(
+                            f"{detected_genre.title()} Movies",
+                            movies
+                        ),
+                        "options": ["⬅ Back", "🏠 Main Menu"]
                     })
 
                 # Ask for genre
                 if "genre" in message_lower:
                     request.session["chatbot_step"] = "movie_genre"
+
                     return JsonResponse({
                         "reply": "Which genre do you want?",
-                        "options": ["Action", "Comedy", "Horror", "Romance", "Thriller", "Drama", "Sci-Fi", "Back"],
+                        "options": [
+                            "Action",
+                            "Comedy",
+                            "Horror",
+                            "Romance",
+                            "Thriller",
+                            "Drama",
+                            "Sci-Fi",
+                            "⬅ Back"
+                        ],
                     })
 
                 return JsonResponse({
                     "reply": "Choose how you want movie suggestions:",
-                    "options": ["Upcoming movies", "By genre", "By budget", "Top rated"],
+                    "options": [
+                        "Upcoming movies",
+                        "By genre",
+                        "By budget",
+                        "Top rated",
+                        "By language"
+                    ],
                 })
 
             if step == "movie_genre":
-                if message_lower in {"back", "menu"}:
-                    return main_menu()
+                if message_lower in {"back", "⬅ back"}:
+                    request.session["chatbot_mode"] = "movie"
+                    request.session["chatbot_step"] = "movie_menu"
+
+                    return JsonResponse({
+                        "reply": "What kind of movie suggestion do you want?",
+                        "options": [
+                            "Upcoming movies",
+                            "By genre",
+                            "By budget",
+                            "Top rated",
+                            "By language",
+                        ],
+                    })
 
                 genre_text = message.strip()
                 movies = _get_movies_by_genre(genre_text)
@@ -2214,7 +2481,7 @@ def chatbot_reply(request):
                 clear_flow()
                 return JsonResponse({
                     "reply": _movie_list_reply(f"{genre_text.title()} Movies", movies),
-                    "options": ["Movie suggestion", "Support issue"],
+                    "options": ["⬅ Back", "🏠 Main Menu"]
                 })
 
             if step == "movie_budget":
@@ -2232,18 +2499,73 @@ def chatbot_reply(request):
                 clear_flow()
                 return JsonResponse({
                     "reply": _movie_list_reply(f"{budget.title()} Budget Movies", movies),
-                    "options": ["Movie suggestion", "Support issue"],
+                    "options": ["⬅ Back", "🏠 Main Menu"]
                 })
+            
+            if step == "movie_language":
 
+                if message_lower in {"back", "⬅ back"}:
+                    request.session["chatbot_step"] = "movie_menu"
+
+                    return JsonResponse({
+                        "reply": "What kind of movie suggestion do you want?",
+                        "options": [
+                            "Upcoming movies",
+                            "By genre",
+                            "By budget",
+                            "Top rated",
+                            "By language"
+                        ]
+                    })
+
+                language_map = {
+                    "english": "en",
+                    "hindi": "hi",
+                    "tamil": "ta",
+                    "telugu": "te",
+                    "malayalam": "ml",
+                    "kannada": "kn",
+                    "punjabi": "pa",
+                }
+
+                language_code = language_map.get(message_lower)
+
+                if language_code:
+
+                    movies = Movie.objects.filter(
+                        language__iexact=language_code,
+                        is_active=True
+                    )[:5]
+
+                    if movies.exists():
+
+                        movie_list = "\n".join(
+                            f"🎬 {movie.title}"
+                            for movie in movies
+                        )
+
+                        return JsonResponse({
+                            "reply": f"Here are some {message_lower.title()} movies:\n\n{movie_list}",
+                            "options": ["⬅ Back", "🏠 Main Menu"]
+                        })
+
+                    return JsonResponse({
+                        "reply": f"I could not find any {message_lower} movies right now.",
+                        "options": ["⬅ Back", "🏠 Main Menu"]
+                    })
         # ---------------------------
         # FALLBACK
         # ---------------------------
         return main_menu()
 
     except Exception as e:
-        print("CHATBOT ERROR:", repr(e))
+
+        traceback.print_exc()
+
         return JsonResponse(
-            {"reply": "Sorry, something went wrong while handling your request."},
+            {
+                "reply": str(e)
+            },
             status=500,
         )
 # ---------------------------
