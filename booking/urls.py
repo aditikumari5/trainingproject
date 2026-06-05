@@ -160,4 +160,6 @@ urlpatterns = [
     path("explore/", views.explore, name="explore"),
     path("events/", views.events, name="events"),
 
+    path("chatbot/movies/<str:lang>/", views.chatbot_language_movies, name="chatbot_language_movies"),
 ]
+

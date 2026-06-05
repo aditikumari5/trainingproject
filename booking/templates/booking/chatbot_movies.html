@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Latest {{ language }} Movies</h2>
+<ul>
+  {% for movie in movies %}
+    <li>
+      <img src="https://image.tmdb.org/t/p/w200{{ movie.poster_path }}" alt="{{ movie.title }}">
+      <strong>{{ movie.title }}</strong> ({{ movie.release_date }})
+    </li>
+  {% empty %}
+    <li>No movies found.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

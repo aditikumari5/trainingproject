@@ -51,7 +51,7 @@ from openai import OpenAI
 import calendar
 import traceback
 from .models import Booking
-
+from .tmdb import fetch_latest_movies
 
 
 # ---------------------------
@@ -751,6 +751,7 @@ def movies(request):
     """
     query = request.GET.get("q", "").strip()
     selected_genre = request.GET.get("genre", "").strip()
+    selected_language = request.GET.get("language", "").strip()
 
     movies_qs = Movie.objects.filter(is_active=True)
 
@@ -760,15 +761,19 @@ def movies(request):
     if selected_genre:
         movies_qs = movies_qs.filter(genre__icontains=selected_genre)
 
-    all_genres = []
+    if selected_language:
+        movies_qs = movies_qs.filter(language__isexact=selected_language)
+
+    all_genres=[]
     genre_movies = Movie.objects.exclude(genre="")
+    
     for movie in genre_movies:
         for g in movie.genre.split(","):
             g = g.strip()
             if g and g not in all_genres:
                 all_genres.append(g)
-    all_genres.sort()
 
+    all_genres.sort()
     return render(
         request,
         "booking/movies.html",
@@ -776,6 +781,7 @@ def movies(request):
             "movies": movies_qs,
             "query": query,
             "selected_genre": selected_genre,
+            "selected_language": selected_language,
             "all_genres": all_genres,
             "wishlist_movie_ids": get_wishlist_movie_ids(request),
         },
@@ -2082,6 +2088,8 @@ def chatbot_reply(request):
                     "By genre",
                     "By budget",
                     "Top rated"
+                    "By language",
+                    "By booking status"
                 ],
             })
 
@@ -2394,9 +2402,6 @@ def chatbot_reply(request):
                             "English",
                             "Tamil",
                             "Telugu",
-                            "Malayalam",
-                            "Kannada",
-                            "Punjabi",
                             "⬅ Back"
                         ]
                     })
@@ -2516,6 +2521,44 @@ def chatbot_reply(request):
                 })
 
 
+            if step == "movie_language":
+
+                if message_lower in {"back", "⬅ back"}:
+                    request.session["chatbot_step"] = "movie_menu"
+
+                    return JsonResponse({
+                        "reply": "What kind of movie suggestion do you want?",
+                        "options": [
+                            "Upcoming movies",
+                            "By genre",
+                            "By budget",
+                            "Top rated",
+                            "By language",
+                            "By booking status"
+                        ],
+                    })
+
+                language = message.strip()
+
+                movies = Movie.objects.filter(
+                    language__icontains=language
+                )[:10]
+
+                clear_flow()
+
+                if not movies:
+                    return JsonResponse({
+                        "reply": f"I could not find any {language} movies right now.",
+                        "options": ["⬅ Back", "🏠 Main Menu"],
+                    })
+
+                return JsonResponse({
+                    "reply": _movie_list_reply(
+                        f"{language.title()} Movies",
+                        movies
+                    ),
+                    "options": ["⬅ Back", "🏠 Main Menu"],
+                })
         # ---------------------------
                 # fallback if direct genre search fails
         if not movies:
@@ -2543,8 +2586,34 @@ def chatbot_reply(request):
             "reply": "Sorry, something went wrong while handling your request."
         }, status=500)
 
-
 # ---------------------------
+#CHATBOT LANGUAGE MOVIES
+# ---------------------------
+
+def chatbot_language_movies(request, lang):
+    """
+    Chatbot endpoint: return movies by language.
+    Example: /chatbot/movies/hindi/
+    """
+    lang_map = {
+        "hindi": "hi",
+        "english": "en",
+        "tamil": "ta",
+        "telugu": "te",
+        "malayalam": "ml",
+        "Kannada": "ka",
+        "punjabi": "pu",
+    }
+    code = lang_map.get(lang.lower(), "hi")
+
+    movies = fetch_latest_movies(language_code=code)
+
+    return render(
+        request,
+        "booking/chatbot_movies.html",
+        {"movies": movies, "language": lang.capitalize()}
+    )
+
 # FOOD OFFERS
 # ---------------------------
 
