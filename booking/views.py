@@ -2027,7 +2027,7 @@ def chatbot_reply(request):
                     "By budget",
                     "Top rated",
                     "By language",
-                    "By booking status"
+                    "By booking status",
                 ],
             })
 
@@ -2087,9 +2087,9 @@ def chatbot_reply(request):
                     "Upcoming movies",
                     "By genre",
                     "By budget",
-                    "Top rated"
+                    "Top rated",
                     "By language",
-                    "By booking status"
+                    "By booking status",
                 ],
             })
 
@@ -2456,7 +2456,7 @@ def chatbot_reply(request):
                         "By budget",
                         "Top rated",
                         "By language",
-                        "By booking status"
+                        "By booking status",
                     ],
                 })
             # Booking Status
@@ -2534,7 +2534,7 @@ def chatbot_reply(request):
                             "By budget",
                             "Top rated",
                             "By language",
-                            "By booking status"
+                            "By booking status",
                         ],
                     })
 
