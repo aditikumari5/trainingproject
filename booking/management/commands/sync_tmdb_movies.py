@@ -306,12 +306,6 @@ class Command(BaseCommand):
                             vote_count
                         ),
 
-                    "trailer_url": (
-                        f"https://www.youtube.com/embed/{trailer_key}?autoplay=1&mute=1"
-                        if trailer_key
-                        else ""
-                    ),
-
                 },
             )
 

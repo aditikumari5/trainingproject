@@ -50,6 +50,7 @@ from .models import (
 from openai import OpenAI
 import calendar
 import traceback
+from .models import Booking
 
 
 
@@ -2020,6 +2021,7 @@ def chatbot_reply(request):
                     "By budget",
                     "Top rated",
                     "By language",
+                    "By booking status"
                 ],
             })
 
@@ -2448,47 +2450,53 @@ def chatbot_reply(request):
                         "By genre",
                         "By budget",
                         "Top rated",
-                        "By language"
+                        "By language",
+                        "By booking status"
                     ],
                 })
+            # Booking Status
+            if "booking status" in message_lower:
 
-            if step == "movie_genre":
-                if message_lower in {"back", "⬅ back"}:
-                    request.session["chatbot_mode"] = "movie"
-                    request.session["chatbot_step"] = "movie_menu"
+                bookings = Booking.objects.filter(
+                    user=request.user
+                ).order_by("-booked_at")[:5]
 
+                if not bookings.exists():
                     return JsonResponse({
-                        "reply": "What kind of movie suggestion do you want?",
-                        "options": [
-                            "Upcoming movies",
-                            "By genre",
-                            "By budget",
-                            "Top rated",
-                            "By language",
-                        ],
+                        "reply": "You don't have any bookings yet."
                     })
 
-                genre_text = message.strip()
-                movies = _get_movies_by_genre(genre_text)
+                booking_text = "🎟 Your Recent Bookings:\n\n"
 
-                # fallback if direct genre search fails
-                if not movies:
-                    detected_genre = _detect_genre(message_lower)
-                    if detected_genre:
-                        movies = _get_movies_by_genre(detected_genre)
-                        genre_text = detected_genre
+                for booking in bookings:
 
-                clear_flow()
+                    status = (
+                        "Paid ✅"
+                        if booking.payment_status
+                        else "Pending ❌"
+                    )
+
+                    booking_text += (
+                        f"🎬 Movie: {booking.movie_name}\n"
+                        f"🕒 Show: {booking.show_time}\n"
+                        f"🪑 Seats: {booking.seats}\n"
+                        f"💰 Amount: ₹{booking.amount}\n"
+                        f"📌 Status: {status}\n\n"
+                    )
+
                 return JsonResponse({
-                    "reply": _movie_list_reply(f"{genre_text.title()} Movies", movies),
-                    "options": ["⬅ Back", "🏠 Main Menu"]
+                    "reply": booking_text,
+                    "options": ["⬅ Back"]
                 })
 
+
             if step == "movie_budget":
+
                 if message_lower in {"back", "menu"}:
                     return main_menu()
 
                 budget = message_lower
+
                 if budget not in {"low", "medium", "high"}:
                     return JsonResponse({
                         "reply": "Please choose a valid budget: low, medium, or high.",
@@ -2496,78 +2504,46 @@ def chatbot_reply(request):
                     })
 
                 movies = _get_movies_by_budget(budget)
+
                 clear_flow()
+
                 return JsonResponse({
-                    "reply": _movie_list_reply(f"{budget.title()} Budget Movies", movies),
+                    "reply": _movie_list_reply(
+                        f"{budget.title()} Budget Movies",
+                        movies
+                    ),
                     "options": ["⬅ Back", "🏠 Main Menu"]
                 })
-            
-            if step == "movie_language":
 
-                if message_lower in {"back", "⬅ back"}:
-                    request.session["chatbot_step"] = "movie_menu"
 
-                    return JsonResponse({
-                        "reply": "What kind of movie suggestion do you want?",
-                        "options": [
-                            "Upcoming movies",
-                            "By genre",
-                            "By budget",
-                            "Top rated",
-                            "By language"
-                        ]
-                    })
-
-                language_map = {
-                    "english": "en",
-                    "hindi": "hi",
-                    "tamil": "ta",
-                    "telugu": "te",
-                    "malayalam": "ml",
-                    "kannada": "kn",
-                    "punjabi": "pa",
-                }
-
-                language_code = language_map.get(message_lower)
-
-                if language_code:
-
-                    movies = Movie.objects.filter(
-                        language__iexact=language_code,
-                        is_active=True
-                    )[:5]
-
-                    if movies.exists():
-
-                        movie_list = "\n".join(
-                            f"🎬 {movie.title}"
-                            for movie in movies
-                        )
-
-                        return JsonResponse({
-                            "reply": f"Here are some {message_lower.title()} movies:\n\n{movie_list}",
-                            "options": ["⬅ Back", "🏠 Main Menu"]
-                        })
-
-                    return JsonResponse({
-                        "reply": f"I could not find any {message_lower} movies right now.",
-                        "options": ["⬅ Back", "🏠 Main Menu"]
-                    })
         # ---------------------------
-        # FALLBACK
-        # ---------------------------
-        return main_menu()
+                # fallback if direct genre search fails
+        if not movies:
+            detected_genre = _detect_genre(message_lower)
+
+            if detected_genre:
+                movies = _get_movies_by_genre(detected_genre)
+                genre_text = detected_genre
+
+        clear_flow()
+
+        return JsonResponse({
+            "reply": _movie_list_reply(
+                f"{genre_text.title()} Movies",
+                movies
+            ),
+            "options": ["⬅ Back", "🏠 Main Menu"]
+        })
 
     except Exception as e:
-
+        print("CHATBOT ERROR:", repr(e))
         traceback.print_exc()
 
-        return JsonResponse(
-            {
-                "reply": str(e)
-            },
-            status=500,
-        )
+        return JsonResponse({
+            "reply": "Sorry, something went wrong while handling your request."
+        }, status=500)
+
+
 # ---------------------------
 # FOOD OFFERS
 # ---------------------------
