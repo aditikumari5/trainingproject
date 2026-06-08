@@ -4,6 +4,9 @@ from django.conf import settings
 from django.contrib import admin
 
 
+#------------------
+#PAYMENT MODEL
+#--------------------
 class Payment(models.Model):
     booking = models.ForeignKey(
     'booking.Booking',
@@ -19,6 +22,9 @@ class Payment(models.Model):
     def __str__(self):
         return f"Payment {self.id} - {self.status}"
 
+#------------------
+#MOVIE MODEL
+#--------------------
 class Movie(models.Model):
     title = models.CharField(max_length=200)
     overview = models.TextField(blank=True, default="")
@@ -38,6 +44,9 @@ class Movie(models.Model):
         return self.title
 
 
+#------------------
+#SHOW MODEL
+#--------------------
 class Show(models.Model):
     movie_name = models.CharField(max_length=200)
     show_time = models.CharField(max_length=100)
@@ -47,6 +56,9 @@ class Show(models.Model):
         return f"{self.movie_name} - {self.show_time}"
 
 
+#------------------
+#SEAT MODEL
+#--------------------
 class Seat(models.Model):
     seat_number = models.CharField(max_length=10)
     is_booked = models.BooleanField(default=False)
@@ -63,6 +75,9 @@ class Seat(models.Model):
         return f"{self.seat_number} ({self.show.movie_name})"
 
 
+#------------------
+#BOOKING MODEL
+#--------------------
 class Booking(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
 
@@ -84,6 +99,9 @@ class Booking(models.Model):
         return f"{self.movie_name} - {self.seats}"
 
 
+#------------------
+#WISHLIST MODEL
+#--------------------
 class Wishlist(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     movie = models.ForeignKey(Movie, on_delete=models.CASCADE)
@@ -97,6 +115,9 @@ class Wishlist(models.Model):
         return f"{self.user.username} - {self.movie.title}"
     
 
+#-------------------------
+# CONTINUE WATCHING  MODEL
+#-------------------------
 class ContinueWatching(models.Model):
 
     user = models.ForeignKey(
@@ -126,6 +147,9 @@ class ContinueWatching(models.Model):
 
 
 
+#------------------
+#FOOD COMBO OFFER MODEL
+#--------------------
 class ComboOffer(models.Model):
     title = models.CharField(max_length=120)
     description = models.TextField(blank=True)
@@ -139,6 +163,9 @@ class ComboOffer(models.Model):
     
 
 
+#------------------
+# FOOD ITEM MODEL
+#--------------------
 
 class FoodItem(models.Model):
     name = models.CharField(max_length=120)
@@ -151,6 +178,9 @@ class FoodItem(models.Model):
         return self.name
 
 
+#------------------
+# FOOD CART ITEM MODEL
+#--------------------
 class FoodCartItem(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     food_item = models.ForeignKey(FoodItem, on_delete=models.CASCADE)
@@ -165,6 +195,9 @@ class FoodCartItem(models.Model):
         return f"{self.user.username} - {self.food_item.name} x {self.quantity}"
     
 
+#------------------
+#EVENT MODEL
+#--------------------
 class Event(models.Model):
     EVENT_TYPE_CHOICES = [
         ("COMEDY", "Comedy"),
@@ -226,6 +259,10 @@ class Event(models.Model):
     def __str__(self):
         return self.title
 
+#------------------
+#SUPPORT TICKET MODEL
+#--------------------
+
 class SupportTicket(models.Model):
     CATEGORY_CHOICES = [
         ("BOOKING", "Booking Issue"),
@@ -258,6 +295,10 @@ class SupportTicket(models.Model):
         return f"{self.name} - {self.get_category_display()} - {self.status}"
     
 
+
+#------------------
+#SUPPORT TICKET ADMIN MODEL
+#--------------------
 @admin.register(SupportTicket)
 class SupportTicketAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "email", "status", "created_at")

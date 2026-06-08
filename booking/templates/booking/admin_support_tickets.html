@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2>Support Tickets</h2>
+
+    <div class="row mt-4">
+
+        <div class="col-md-3">
+            <div class="card p-3">
+                <h5>Pending</h5>
+                <h2>{{ pending_count }}</h2>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card p-3">
+                <h5>Resolved</h5>
+                <h2>{{ resolved_count }}</h2>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card p-3">
+                <h5>Total Tickets</h5>
+                <h2>{{ tickets.count }}</h2>
+            </div>
+        </div>
+
+    </div>
+
+    <table class="table table-striped mt-4">
+
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Category</th>
+                <th>Message</th>
+                <th>Status</th>
+                <th>Created</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+        {% for ticket in tickets %}
+
+            <tr>
+                <td>{{ ticket.name }}</td>
+                <td>{{ ticket.email }}</td>
+                <td>{{ ticket.get_category_display }}</td>
+                <td>{{ ticket.message }}</td>
+                <td>{{ ticket.get_status_display }}</td>
+                <td>{{ ticket.created_at }}</td>
+            </tr>
+
+        {% endfor %}
+
+        </tbody>
+
+    </table>
+
+</div>
+
+{% endblock %}

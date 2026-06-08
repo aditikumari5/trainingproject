@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Nearby Movie Theatres</title>
+
+    <style>
+        body{
+            font-family: Arial, sans-serif;
+            text-align:center;
+            padding-top:80px;
+        }
+
+        button{
+            background:#e50914;
+            color:white;
+            border:none;
+            padding:15px 30px;
+            border-radius:8px;
+            cursor:pointer;
+            font-size:18px;
+        }
+
+        button:hover{
+            opacity:.9;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>📍 Find Nearby Movie Theatres</h1>
+
+    <p>
+        Allow location access to find theatres near you.
+    </p>
+
+    <button onclick="findTheatres()">
+        Find Theatres
+    </button>
+
+    <script>
+
+        function findTheatres(){
+
+            if(!navigator.geolocation){
+                alert("Geolocation not supported.");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+
+                function(position){
+
+                    const lat = position.coords.latitude;
+                    const lng = position.coords.longitude;
+
+                    const googleUrl =
+                        `https://www.google.com/maps/search/movie+theatre/@${lat},${lng},15z`;
+
+                    window.open(
+                        googleUrl,
+                        "_blank"
+                    );
+                },
+
+                function(error){
+                    alert(
+                        "Location permission denied."
+                    );
+                }
+            );
+        }
+
+    </script>
+
+</body>
+</html>

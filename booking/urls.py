@@ -161,5 +161,8 @@ urlpatterns = [
     path("events/", views.events, name="events"),
 
     path("chatbot/movies/<str:lang>/", views.chatbot_language_movies, name="chatbot_language_movies"),
+    path("nearby-theatres/",views.nearby_theatres,name="nearby_theatres"),
+    path("admin-support-tickets/",views.admin_support_tickets,name="admin_support_tickets"),
+    path("admin-dashboard/", views.admin_dashboard, name="admin_dashboard"),
 ]
 

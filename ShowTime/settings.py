@@ -189,3 +189,9 @@ SESSION_SAVE_EVERY_REQUEST = True
 # SUPPORT ADMIN EMAIL
 # -------------------------
 SUPPORT_ADMIN_EMAIL = os.getenv("SUPPORT_ADMIN_EMAIL", DEFAULT_FROM_EMAIL)
+
+#-------------------------
+# GEMINI API KEY
+#-------------------------
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
